@@ -447,6 +447,7 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         if sort == 'rev_desc': sort_col = "rev_sewa_tahun DESC"
         elif sort == 'biaya_desc': sort_col = "biaya_sewa_tahun DESC"
         elif sort == 'sisa_hari_asc': sort_col = "sisa_hari ASC"
+        elif sort == 'pengelola_asc': sort_col = "pengelola ASC, pelanggan ASC"
         elif sort == 'id_asc': sort_col = "id ASC"
 
         offset = (page - 1) * page_size

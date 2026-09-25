@@ -113,6 +113,28 @@
       .replace(/'/g, '&#039;');
   };
 
+  const computeRowspanMap = (records, key = 'pengelola') => {
+    if (!records || !records.length) return [];
+    const map = new Array(records.length).fill(0);
+    for (let i = 0; i < records.length;) {
+      const cur = String(records[i][key] || '').trim().toLowerCase();
+      let span = 1;
+      while (
+        i + span < records.length &&
+        String(records[i + span][key] || '').trim().toLowerCase() === cur &&
+        cur !== ''
+      ) {
+        span++;
+      }
+      map[i] = span;
+      for (let j = 1; j < span; j++) {
+        map[i + j] = -1;
+      }
+      i += span;
+    }
+    return map;
+  };
+
   const showToast = (message, type = 'success') => {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -858,13 +880,31 @@
       return;
     }
 
+    const rowspanMap = computeRowspanMap(records, 'pengelola');
+
     let html = '';
     records.forEach((c, idx) => {
       const rowIdx = (state.collo.page - 1) * state.collo.pageSize + idx + 1;
+
+      // Smart merged cell for Pengelola / Rekanan
+      let pengelolaTd = '';
+      if (rowspanMap[idx] > 0) {
+        const span = rowspanMap[idx];
+        const spanAttr = span > 1 ? ` rowspan="${span}"` : '';
+        const isMerged = span > 1;
+        pengelolaTd = `
+          <td${spanAttr} class="${isMerged ? 'cell-merged align-middle' : ''}">
+            <strong class="text-slate-100 block">${escapeHtml(c.pengelola || '-')}</strong>
+            ${c.pic_rekanan ? `<div class="text-[11px] text-slate-400 mt-0.5"><i class="fa-solid fa-user-tie text-[10px] mr-1 text-slate-500"></i>${escapeHtml(c.pic_rekanan)}</div>` : ''}
+            ${isMerged ? `<span class="inline-flex items-center gap-1 text-[10px] text-cyan-400 font-mono mt-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20"><i class="fa-solid fa-layer-group text-[9px]"></i>${span} Link Digabung</span>` : ''}
+          </td>
+        `;
+      }
+
       html += `
         <tr>
           <td class="font-mono text-xs text-slate-500">${rowIdx}</td>
-          <td><strong>${escapeHtml(c.pengelola || '-')}</strong></td>
+          ${pengelolaTd}
           <td>${escapeHtml(c.pelanggan || '-')}</td>
           <td>
             <div class="font-mono text-cyan-400 text-xs">${escapeHtml(c.sid || '-')}</div>
@@ -927,12 +967,25 @@
       // Detailed Links Table
       const tbLinks = document.getElementById('revShareTableBody');
       if (tbLinks) {
+        const sliceData = (json.data || []).slice(0, 50);
+        const rowspanMap = computeRowspanMap(sliceData, 'pengelola');
         let lhtml = '';
-        (json.data || []).slice(0, 50).forEach((c, idx) => {
+        sliceData.forEach((c, idx) => {
+          let pengelolaTd = '';
+          if (rowspanMap[idx] > 0) {
+            const span = rowspanMap[idx];
+            const isMerged = span > 1;
+            pengelolaTd = `
+              <td${span > 1 ? ` rowspan="${span}"` : ''} class="${isMerged ? 'cell-merged align-middle' : ''}">
+                <strong class="text-slate-100 block">${escapeHtml(c.pengelola || '-')}</strong>
+                ${isMerged ? `<span class="inline-flex items-center gap-1 text-[10px] text-cyan-400 font-mono mt-1 px-1.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20"><i class="fa-solid fa-layer-group text-[9px]"></i>${span} Link</span>` : ''}
+              </td>
+            `;
+          }
           lhtml += `
             <tr>
               <td class="text-xs text-slate-500">${idx + 1}</td>
-              <td><strong>${escapeHtml(c.pengelola)}</strong></td>
+              ${pengelolaTd}
               <td>${escapeHtml(c.pelanggan)}</td>
               <td class="font-mono text-xs text-cyan-400">${escapeHtml(c.no_so || c.sid || '-')}</td>
               <td class="max-w-[180px] truncate" title="${escapeHtml(c.terminating)}">${escapeHtml(c.terminating || '-')}</td>
@@ -1061,12 +1114,25 @@
       // Table Body
       const tbody = document.getElementById('alertTableBody');
       if (tbody) {
+        const sliceData = (json.data || []).slice(0, 60);
+        const rowspanMap = computeRowspanMap(sliceData, 'pengelola');
         let html = '';
-        (json.data || []).slice(0, 60).forEach((c, idx) => {
+        sliceData.forEach((c, idx) => {
+          let pengelolaTd = '';
+          if (rowspanMap[idx] > 0) {
+            const span = rowspanMap[idx];
+            const isMerged = span > 1;
+            pengelolaTd = `
+              <td${span > 1 ? ` rowspan="${span}"` : ''} class="${isMerged ? 'cell-merged align-middle' : ''}">
+                <strong class="text-slate-100 block">${escapeHtml(c.pengelola || '-')}</strong>
+                ${isMerged ? `<span class="inline-flex items-center gap-1 text-[10px] text-cyan-400 font-mono mt-1 px-1.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20"><i class="fa-solid fa-layer-group text-[9px]"></i>${span} Link</span>` : ''}
+              </td>
+            `;
+          }
           html += `
             <tr>
               <td class="text-xs text-slate-500">${idx + 1}</td>
-              <td><strong>${escapeHtml(c.pengelola)}</strong></td>
+              ${pengelolaTd}
               <td>${escapeHtml(c.pelanggan)}</td>
               <td class="font-mono text-xs text-cyan-400">${escapeHtml(c.sid || c.no_so || '-')}</td>
               <td>${c.end_date || '-'}</td>
