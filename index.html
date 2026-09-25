@@ -1138,12 +1138,13 @@
             <button class="map-tag-btn" data-status="Cancel">🔴 Cancel</button>
           </div>
 
-          <!-- Base Map Layer Switchers -->
+          <!-- Base Map Layer Switchers (Google Maps) -->
           <div class="flex items-center gap-1.5 flex-wrap">
-            <span class="text-xs font-semibold text-slate-400 mr-1"><i class="fa-solid fa-layer-group text-amber-400"></i> Tampilan:</span>
-            <button type="button" class="map-layer-btn active" id="btnLayerOsm" data-layer="osm"><i class="fa-solid fa-map"></i> Peta Standar</button>
-            <button type="button" class="map-layer-btn" id="btnLayerEsri" data-layer="esri"><i class="fa-solid fa-satellite"></i> Satelit Riil</button>
-            <button type="button" class="map-layer-btn" id="btnLayerDark" data-layer="dark"><i class="fa-solid fa-moon"></i> Mode Gelap</button>
+            <span class="text-xs font-semibold text-slate-400 mr-1"><i class="fa-brands fa-google text-rose-400"></i> Peta:</span>
+            <button type="button" class="map-layer-btn active" id="btnLayerGoogle" data-layer="googleRoadmap"><i class="fa-solid fa-map text-cyan-400"></i> Google Maps</button>
+            <button type="button" class="map-layer-btn" id="btnLayerGoogleHybrid" data-layer="googleHybrid"><i class="fa-solid fa-satellite text-amber-400"></i> Google Satelit</button>
+            <button type="button" class="map-layer-btn" id="btnLayerGoogleTerrain" data-layer="googleTerrain"><i class="fa-solid fa-mountain text-emerald-400"></i> Google Medan</button>
+            <button type="button" class="map-layer-btn" id="btnLayerDark" data-layer="cartoDark"><i class="fa-solid fa-moon text-indigo-400"></i> Mode Gelap</button>
           </div>
 
           <!-- Actions & Pin Counter -->

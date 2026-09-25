@@ -75,7 +75,7 @@
   let leafletMap = null;
   let mapMarkersLayer = null;
   let mapBaseLayers = {};
-  let currentBaseLayer = 'osm';
+  let currentBaseLayer = 'googleRoadmap';
   let mapResizeObserver = null;
   let lastMapBounds = null;
 
@@ -1700,25 +1700,32 @@
         preferCanvas: true
       });
 
-      // Prepare multiple robust base map providers
+      // Prepare official Google Maps & High-Res providers
       mapBaseLayers = {
-        osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19
+        googleRoadmap: L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+          attribution: '&copy; Google Maps',
+          maxZoom: 20,
+          subdomains: ['0', '1', '2', '3']
         }),
-        esri: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS',
-          maxZoom: 18
+        googleHybrid: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+          attribution: '&copy; Google Maps Satelit &mdash; Maxar, CNES',
+          maxZoom: 20,
+          subdomains: ['0', '1', '2', '3']
         }),
-        dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        googleTerrain: L.tileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+          attribution: '&copy; Google Maps Medan',
+          maxZoom: 20,
+          subdomains: ['0', '1', '2', '3']
+        }),
+        cartoDark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
           attribution: '&copy; CARTO &copy; OpenStreetMap',
           maxZoom: 19
         })
       };
 
-      // Default to crisp OpenStreetMap (Peta Standar) for maximum visibility
-      mapBaseLayers['osm'].addTo(leafletMap);
-      currentBaseLayer = 'osm';
+      // Default to Google Maps Roadmap (Peta Standar Google)
+      mapBaseLayers['googleRoadmap'].addTo(leafletMap);
+      currentBaseLayer = 'googleRoadmap';
 
       mapMarkersLayer = L.layerGroup().addTo(leafletMap);
 
@@ -1796,6 +1803,7 @@
           fillOpacity: 0.85
         });
 
+        const gmapsCoordQuery = encodeURIComponent(`${lat.toFixed(6)},${lng.toFixed(6)}`);
         marker.bindPopup(`
           <div class="p-2 space-y-1 font-sans">
             <div class="flex justify-between items-center text-xs border-b border-white/10 pb-1 gap-2">
@@ -1803,12 +1811,17 @@
               ${getStatusBadge(p.progress)}
             </div>
             <div class="font-bold text-sm text-slate-100 mt-1">${escapeHtml(p.pelanggan || 'Pelanggan')}</div>
-            <div class="text-xs text-slate-400"><i class="fa-solid fa-location-dot text-rose-400"></i> ${escapeHtml(p.terminating || '-')}</div>
+            <div class="text-xs text-slate-300 leading-relaxed"><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i>${escapeHtml(p.terminating || '-')}</div>
             <div class="text-xs text-slate-300">PIC: <strong>${escapeHtml(p.pic_perijinan || '-')}</strong></div>
             <div class="flex justify-between text-xs pt-1 border-t border-white/10 mt-1">
               <span>Biaya Final:</span>
               <strong class="text-amber-400 font-mono">${formatRupiah(p.biaya_final)}</strong>
             </div>
+            <a href="https://www.google.com/maps/search/?api=1&query=${gmapsCoordQuery}" target="_blank" rel="noopener noreferrer" class="btn-gmaps-link">
+              <i class="fa-brands fa-google text-rose-400"></i>
+              <span>Buka di Google Maps</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[10px] ml-1"></i>
+            </a>
           </div>
         `);
 
