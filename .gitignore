@@ -11,8 +11,7 @@ sitac_database.db
 sitac_collo_data.*
 sitac_data.*
 
-# Raw Excel files (locked when opened in Excel)
-*.xlsx
+# Office lock files
 ~$*.xlsx
 *.tmp
 
