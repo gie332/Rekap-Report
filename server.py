@@ -434,12 +434,13 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
 
         # Count total
-        cursor.execute(f"SELECT COUNT(*), SUM(rev_sewa_tahun), SUM(biaya_sewa_tahun), SUM(margin_rupiah) FROM collo_records {where_clause}", params)
+        cursor.execute(f"SELECT COUNT(*), SUM(rev_sewa_tahun), SUM(biaya_sewa_tahun), SUM(margin_rupiah), SUM(biaya_otc) FROM collo_records {where_clause}", params)
         total_row = cursor.fetchone()
         total_count = total_row[0] or 0
         tot_rev = total_row[1] or 0
         tot_biaya = total_row[2] or 0
         tot_margin = total_row[3] or 0
+        tot_otc = total_row[4] or 0
 
         # Sort order
         sort_col = "margin_rupiah DESC"
@@ -468,7 +469,8 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
             "totals": {
                 "revenue": tot_rev,
                 "biaya": tot_biaya,
-                "margin": tot_margin
+                "margin": tot_margin,
+                "biaya_otc": tot_otc
             }
         })
 
@@ -785,20 +787,40 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         conn = get_db()
         cursor = conn.cursor()
 
+        cursor.execute("SELECT * FROM collo_records WHERE id = ?", (rec_id,))
+        cur_row = cursor.fetchone()
+        if not cur_row:
+            conn.close()
+            return self.send_error_json("Record not found", 404)
+
+        cur_rec = dict(cur_row)
         fields = []
         params = []
 
-        allowed_fields = ['status', 'spp', 'po_baru', 'ref_spp', 'proses_admin', 'keterangan']
+        allowed_fields = ['status', 'spp', 'po_baru', 'ref_spp', 'proses_admin', 'keterangan', 'rev_sewa_tahun', 'biaya_otc', 'biaya_sewa_tahun']
         for f in allowed_fields:
             if f in body:
+                val = body[f]
+                if f in ['rev_sewa_tahun', 'biaya_otc', 'biaya_sewa_tahun']:
+                    val = safe_int(val)
                 fields.append(f"{f} = ?")
-                params.append(body[f])
+                params.append(val)
 
         if 'status' in body:
             st = str(body['status']).upper()
             is_active = 1 if st == 'ACTIVE' else 0
             fields.append("is_active = ?")
             params.append(is_active)
+
+        if 'rev_sewa_tahun' in body or 'biaya_sewa_tahun' in body:
+            rev_sewa = safe_int(body['rev_sewa_tahun']) if 'rev_sewa_tahun' in body else cur_rec.get('rev_sewa_tahun', 0)
+            biaya_sewa = safe_int(body['biaya_sewa_tahun']) if 'biaya_sewa_tahun' in body else cur_rec.get('biaya_sewa_tahun', 0)
+            margin_rp = rev_sewa - biaya_sewa
+            margin_pct = round((margin_rp / rev_sewa * 100), 1) if rev_sewa > 0 else 0.0
+            fields.append("margin_rupiah = ?")
+            params.append(margin_rp)
+            fields.append("margin_persen = ?")
+            params.append(margin_pct)
 
         if not fields:
             conn.close()
@@ -939,6 +961,7 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
             return self.send_error_json("Pengelola dan Pelanggan wajib diisi")
 
         rev_sewa = safe_int(b.get('rev_sewa_tahun', 0))
+        biaya_otc = safe_int(b.get('biaya_otc', 0))
         biaya_sewa = safe_int(b.get('biaya_sewa_tahun', 0))
         margin_rp = rev_sewa - biaya_sewa
         margin_pct = round((margin_rp / rev_sewa * 100), 1) if rev_sewa > 0 else 0.0
@@ -981,15 +1004,15 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         cursor.execute("""
             INSERT INTO collo_records (
                 pengelola, pelanggan, no_so, sid, jenis_sewa, layanan,
-                rev_sewa_tahun, biaya_sewa_tahun, margin_rupiah, margin_persen,
+                rev_sewa_tahun, biaya_otc, biaya_sewa_tahun, margin_rupiah, margin_persen,
                 rev_sharing_raw, rev_sharing_pct, biaya_rev_sharing,
                 start_date, end_date, status, is_active, sisa_hari, alert_category,
                 alert_label, alert_color, spp, po_baru, pic_admin, keterangan
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             pengelola, pelanggan, str(b.get('no_so', '')).strip(), str(b.get('sid', '')).strip(),
             str(b.get('jenis_sewa', 'Colocation')).strip() or 'Colocation', str(b.get('layanan', '')).strip(),
-            rev_sewa, biaya_sewa, margin_rp, margin_pct,
+            rev_sewa, biaya_otc, biaya_sewa, margin_rp, margin_pct,
             rev_share_raw, rev_share_pct, biaya_share,
             start_date, end_date, st, is_active, sisa_hari, alert_cat,
             alert_label, alert_color, str(b.get('spp', '')).strip(), str(b.get('po_baru', '')).strip(),

@@ -520,9 +520,10 @@
           <!-- Filter Summary Stats Bar -->
           <div class="flex items-center justify-between text-xs text-slate-300 pt-3 mt-3 border-t border-white/5">
             <span id="colloTableSummaryText">Menampilkan <strong>880</strong> sirkuit</span>
-            <div class="flex items-center gap-4">
-              <span>Total Rev: <strong class="text-emerald-400 font-mono" id="colloSumRev">Rp 0</strong></span>
-              <span>Total Biaya: <strong class="text-amber-400 font-mono" id="colloSumBiaya">Rp 0</strong></span>
+            <div class="flex items-center gap-4 flex-wrap">
+              <span>Total Rev Sewa (1 Thn): <strong class="text-emerald-400 font-mono" id="colloSumRev">Rp 0</strong></span>
+              <span>Total Biaya OTC: <strong class="text-purple-400 font-mono" id="colloSumOtc">Rp 0</strong></span>
+              <span>Total Biaya Sewa (1 Thn): <strong class="text-amber-400 font-mono" id="colloSumBiaya">Rp 0</strong></span>
               <span>Total Margin: <strong class="text-cyan-400 font-mono" id="colloSumMargin">Rp 0</strong></span>
             </div>
           </div>
@@ -540,8 +541,9 @@
                   <th>SID & No SO</th>
                   <th>Originating & Terminating</th>
                   <th>Layanan & Jenis</th>
-                  <th class="text-right">Revenue (1 Thn)</th>
-                  <th class="text-right">Biaya Mitra (1 Thn)</th>
+                  <th class="text-right">Rev Sewa (1 Thn) Pelanggan (Rp)</th>
+                  <th class="text-right">Biaya OTC</th>
+                  <th class="text-right">Biaya Sewa 1 Tahun (Rp)</th>
                   <th class="text-right">Margin (Rev - Biaya)</th>
                   <th class="text-center">Status</th>
                   <th class="text-center w-28">Aksi</th>
@@ -1408,14 +1410,18 @@
               <input type="text" name="sid" class="filter-input w-full text-xs" placeholder="1000234">
             </div>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="form-label">Revenue Sewa Tahunan (Rp)</label>
-              <input type="number" name="rev_sewa_tahun" class="filter-input w-full text-xs" value="0">
+              <label class="form-label">Rev Sewa (1 Thn) Pelanggan (Rp)</label>
+              <input type="number" name="rev_sewa_tahun" class="filter-input w-full text-xs" value="0" placeholder="0">
             </div>
             <div>
-              <label class="form-label">Biaya Sewa Mitra Tahunan (Rp)</label>
-              <input type="number" name="biaya_sewa_tahun" class="filter-input w-full text-xs" value="0">
+              <label class="form-label">Biaya OTC (Rp)</label>
+              <input type="number" name="biaya_otc" class="filter-input w-full text-xs" value="0" placeholder="0">
+            </div>
+            <div>
+              <label class="form-label">Biaya Sewa 1 Tahun (Rp)</label>
+              <input type="number" name="biaya_sewa_tahun" class="filter-input w-full text-xs" value="0" placeholder="0">
             </div>
           </div>
           <div class="grid grid-cols-3 gap-3">

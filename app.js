@@ -757,6 +757,8 @@
       // Update summary bar
       document.getElementById('colloTableSummaryText').innerHTML = `Menampilkan <strong>${json.total}</strong> sirkuit (${status === 'ACTIVE' ? 'Default: ACTIVE' : status})`;
       document.getElementById('colloSumRev').textContent = formatRupiah(json.totals?.revenue);
+      const otcEl = document.getElementById('colloSumOtc');
+      if (otcEl) otcEl.textContent = formatRupiah(json.totals?.biaya_otc);
       document.getElementById('colloSumBiaya').textContent = formatRupiah(json.totals?.biaya);
       document.getElementById('colloSumMargin').textContent = formatRupiah(json.totals?.margin);
 
@@ -852,7 +854,7 @@
     if (!tbody) return;
 
     if (!records || records.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="11" class="text-center py-10 text-slate-500">Tidak ada sirkuit yang sesuai filter.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="12" class="text-center py-10 text-slate-500">Tidak ada sirkuit yang sesuai filter.</td></tr>`;
       return;
     }
 
@@ -871,6 +873,7 @@
           <td class="max-w-[200px] truncate" title="${escapeHtml(c.terminating)}">${escapeHtml(c.terminating || c.originating || '-')}</td>
           <td><span class="badge-pill bg-slate-800 text-slate-300">${escapeHtml(c.jenis_sewa || 'Colocation')}</span></td>
           <td class="text-right font-mono font-bold text-emerald-400">${formatRupiah(c.rev_sewa_tahun)}</td>
+          <td class="text-right font-mono text-purple-400 font-semibold">${c.biaya_otc > 0 ? formatRupiah(c.biaya_otc) : '<span class="text-slate-600">-</span>'}</td>
           <td class="text-right font-mono text-amber-400">${formatRupiah(c.biaya_sewa_tahun)}</td>
           <td class="text-right font-mono font-bold text-cyan-400">${formatRupiah(c.margin_rupiah)} <span class="text-[10px] text-slate-500">(${c.margin_persen}%)</span></td>
           <td class="text-center">${getStatusBadge(c.status)}</td>
@@ -1855,34 +1858,49 @@
     document.getElementById('quickEditTargetId').value = id;
 
     if (type === 'collo') {
+      const rec = state.collo.data.find(c => c.id == id) || (state.alerts.data || []).find(c => c.id == id) || (state.revSharing.data || []).find(c => c.id == id) || {};
       title.textContent = `Update Sirkuit Colocation #${id}`;
-      sub.textContent = 'Perbarui status sirkuit, nomor SPP, atau catatan admin';
+      sub.textContent = 'Perbarui status sirkuit, nilai sewa, nomor SPP, atau catatan admin';
       container.innerHTML = `
         <div>
           <label class="form-label">Status Sirkuit *</label>
           <select name="status" class="filter-select w-full text-xs">
-            <option value="ACTIVE">ACTIVE</option>
-            <option value="NON ACTIVE">NON ACTIVE</option>
-            <option value="DEACTIVASI">DEACTIVASI</option>
+            <option value="ACTIVE" ${rec.status === 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
+            <option value="NON ACTIVE" ${rec.status === 'NON ACTIVE' ? 'selected' : ''}>NON ACTIVE</option>
+            <option value="DEACTIVASI" ${rec.status === 'DEACTIVASI' ? 'selected' : ''}>DEACTIVASI</option>
           </select>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="form-label">Rev Sewa (1 Thn) (Rp)</label>
+            <input type="number" name="rev_sewa_tahun" class="filter-input w-full text-xs" value="${rec.rev_sewa_tahun || 0}">
+          </div>
+          <div>
+            <label class="form-label">Biaya OTC (Rp)</label>
+            <input type="number" name="biaya_otc" class="filter-input w-full text-xs" value="${rec.biaya_otc || 0}">
+          </div>
+          <div>
+            <label class="form-label">Biaya Sewa 1 Tahun (Rp)</label>
+            <input type="number" name="biaya_sewa_tahun" class="filter-input w-full text-xs" value="${rec.biaya_sewa_tahun || 0}">
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="form-label">Nomor SPP</label>
-            <input type="text" name="spp" class="filter-input w-full text-xs" placeholder="Nomor SPP">
+            <input type="text" name="spp" class="filter-input w-full text-xs" value="${escapeHtml(rec.spp || '')}" placeholder="Nomor SPP">
           </div>
           <div>
             <label class="form-label">Nomor PO Baru</label>
-            <input type="text" name="po_baru" class="filter-input w-full text-xs" placeholder="Nomor PO">
+            <input type="text" name="po_baru" class="filter-input w-full text-xs" value="${escapeHtml(rec.po_baru || '')}" placeholder="Nomor PO">
           </div>
         </div>
         <div>
           <label class="form-label">Status Proses Admin</label>
-          <input type="text" name="proses_admin" class="filter-input w-full text-xs" placeholder="Contoh: Proses SPP / Running">
+          <input type="text" name="proses_admin" class="filter-input w-full text-xs" value="${escapeHtml(rec.proses_admin || '')}" placeholder="Contoh: Proses SPP / Running">
         </div>
         <div>
           <label class="form-label">Catatan Keterangan</label>
-          <textarea name="keterangan" rows="2" class="filter-input w-full text-xs" placeholder="Catatan..."></textarea>
+          <textarea name="keterangan" rows="2" class="filter-input w-full text-xs" placeholder="Catatan...">${escapeHtml(rec.keterangan || '')}</textarea>
         </div>
       `;
     } else if (type === 'sitac') {
@@ -2045,22 +2063,35 @@
     const sub = document.getElementById('detailSubtitle');
 
     if (type === 'collo') {
-      const rec = state.collo.data.find(c => c.id == id);
+      const rec = state.collo.data.find(c => c.id == id) || (state.alerts.data || []).find(c => c.id == id) || (state.revSharing.data || []).find(c => c.id == id);
       if (!rec) return;
 
       title.textContent = `${rec.pengelola} - ${rec.pelanggan}`;
       sub.textContent = `SID: ${rec.sid || '-'} | NO SO: ${rec.no_so || '-'}`;
       content.innerHTML = `
+        <div class="grid grid-cols-3 gap-3 text-xs mb-3">
+          <div class="p-3 bg-emerald-950/30 rounded-lg border border-emerald-500/20">
+            <span class="text-slate-400 uppercase text-[10px] block font-semibold">Rev Sewa (1 Thn) Pelanggan</span>
+            <span class="font-bold text-sm md:text-base text-emerald-400 font-mono mt-0.5 block">${formatRupiah(rec.rev_sewa_tahun)}</span>
+          </div>
+          <div class="p-3 bg-purple-950/30 rounded-lg border border-purple-500/20">
+            <span class="text-slate-400 uppercase text-[10px] block font-semibold">Biaya OTC</span>
+            <span class="font-bold text-sm md:text-base text-purple-400 font-mono mt-0.5 block">${rec.biaya_otc > 0 ? formatRupiah(rec.biaya_otc) : 'Rp 0'}</span>
+          </div>
+          <div class="p-3 bg-amber-950/30 rounded-lg border border-amber-500/20">
+            <span class="text-slate-400 uppercase text-[10px] block font-semibold">Biaya Sewa 1 Tahun</span>
+            <span class="font-bold text-sm md:text-base text-amber-400 font-mono mt-0.5 block">${formatRupiah(rec.biaya_sewa_tahun)}</span>
+          </div>
+        </div>
         <div class="grid grid-cols-2 gap-3 text-xs">
           <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Status</span><span class="font-bold text-sm text-slate-100">${escapeHtml(rec.status)}</span></div>
-          <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Layanan</span><span class="font-bold text-sm text-slate-100">${escapeHtml(rec.layanan || '-')}</span></div>
-          <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Revenue Tahunan</span><span class="font-bold text-emerald-400 font-mono">${formatRupiah(rec.rev_sewa_tahun)}</span></div>
-          <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Biaya Mitra</span><span class="font-bold text-amber-400 font-mono">${formatRupiah(rec.biaya_sewa_tahun)}</span></div>
-          <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Margin</span><span class="font-bold text-cyan-400 font-mono">${formatRupiah(rec.margin_rupiah)} (${rec.margin_persen}%)</span></div>
+          <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Layanan / Jenis</span><span class="font-bold text-sm text-slate-100">${escapeHtml(rec.layanan || rec.jenis_sewa || '-')}</span></div>
+          <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Margin (Rev - Biaya)</span><span class="font-bold text-cyan-400 font-mono">${formatRupiah(rec.margin_rupiah)} (${rec.margin_persen}%)</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Rev Sharing</span><span class="font-bold text-amber-400 font-mono">${escapeHtml(rec.rev_sharing_raw || '-')}</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Masa Berlaku</span><span class="font-mono text-slate-200">${rec.start_date || '-'} s/d ${rec.end_date || '-'} (Sisa ${rec.sisa_hari} Hari)</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Originating / Terminating</span><span class="text-slate-200">${escapeHtml(rec.originating || '-')} &rarr; ${escapeHtml(rec.terminating || '-')}</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Admin & Kontak</span><span class="text-slate-200">PIC Admin: ${escapeHtml(rec.pic_admin || '-')} | Rekanan: ${escapeHtml(rec.pic_rekanan || '-')} (${escapeHtml(rec.telp || '-')})</span></div>
+          ${rec.keterangan ? `<div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Catatan / Keterangan</span><span class="text-slate-300">${escapeHtml(rec.keterangan)}</span></div>` : ''}
         </div>
       `;
     } else if (type === 'sitac') {
@@ -2076,6 +2107,8 @@
           <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Biaya Pengajuan</span><span class="font-bold text-slate-300 font-mono">${formatRupiah(rec.biaya_permintaan_awal)}</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Realisasi Final</span><span class="font-bold text-amber-400 font-mono">${formatRupiah(rec.biaya_final)}</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Penghematan Negosiasi</span><span class="font-bold text-emerald-400 font-mono text-sm">${formatRupiah(rec.efisiensi_rupiah)} (${rec.efisiensi_persen}%)</span></div>
+          ${rec.sewa_otc > 0 ? `<div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Biaya OTC</span><span class="font-bold text-purple-400 font-mono">${formatRupiah(rec.sewa_otc)}</span></div>` : ''}
+          ${rec.biaya_sewa_bulan > 0 ? `<div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Biaya Sewa / Bulan</span><span class="font-bold text-amber-400 font-mono">${formatRupiah(rec.biaya_sewa_bulan)}</span></div>` : ''}
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Terminating</span><span class="text-slate-200">${escapeHtml(rec.terminating || '-')}</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Catatan Update Lapangan</span><span class="text-slate-200">${escapeHtml(rec.update_pekerjaan || 'Tidak ada catatan')}</span></div>
         </div>
@@ -2223,22 +2256,27 @@
       const records = view === 'view-collo-list' ? state.collo.data : (view === 'view-collo-rev-sharing' ? state.revSharing.data : state.alerts.data);
       if (!records || records.length === 0) return alert('Tidak ada data colocation untuk diekspor!');
 
-      headers = ['ID', 'Pengelola', 'Pelanggan', 'No SO', 'SID', 'Jenis Sewa', 'Revenue Tahunan', 'Biaya Mitra', 'Margin Rp', 'Margin %', 'Rev Sharing', 'Status', 'Sisa Hari', 'SPP'];
+      headers = [
+        'ID', 'Pengelola', 'Pelanggan', 'No SO', 'SID', 'Originating', 'Terminating', 'Layanan', 'Jenis Sewa',
+        'Rev Sewa (1 Thn) Pelanggan (Rp)', 'Biaya OTC (Rp)', 'Biaya Sewa 1 Tahun (Rp)',
+        'Margin Rp', 'Margin %', 'Rev Sharing', 'Status', 'Sisa Hari', 'SPP'
+      ];
       rows = records.map(c => [
         c.id, c.pengelola || '', c.pelanggan || '',
-        c.no_so || '', c.sid || '', c.jenis_sewa || '',
-        c.rev_sewa_tahun || 0, c.biaya_sewa_tahun || 0, c.margin_rupiah || 0, c.margin_persen || 0,
+        c.no_so || '', c.sid || '', c.originating || '', c.terminating || '', c.layanan || '', c.jenis_sewa || '',
+        c.rev_sewa_tahun || 0, c.biaya_otc || 0, c.biaya_sewa_tahun || 0,
+        c.margin_rupiah || 0, c.margin_persen || 0,
         c.rev_sharing_raw || '', c.status || '', c.sisa_hari || 0, c.spp || c.po_baru || ''
       ]);
     } else if (view === 'view-sitac-pa') {
       const records = state.sitac.data;
       if (!records || records.length === 0) return alert('Tidak ada data SITAC untuk diekspor!');
 
-      headers = ['ID', 'No PA', 'Pelanggan', 'PIC SITAC', 'PTL', 'Terminating', 'Biaya Awal', 'Biaya Final', 'Penghematan', 'Status', 'Durasi SLA'];
+      headers = ['ID', 'No PA', 'Pelanggan', 'PIC SITAC', 'PTL', 'Terminating', 'Biaya Awal', 'Biaya Final', 'Biaya OTC', 'Biaya Sewa / Bulan', 'Penghematan', 'Status', 'Durasi SLA'];
       rows = records.map(s => [
         s.id, s.no_pa || '', s.pelanggan || '', s.pic_perijinan || '',
         s.ptl || '', s.terminating || '',
-        s.biaya_permintaan_awal || 0, s.biaya_final || 0, s.efisiensi_rupiah || 0, s.progress || '', s.durasi_hari || ''
+        s.biaya_permintaan_awal || 0, s.biaya_final || 0, s.sewa_otc || 0, s.biaya_sewa_bulan || 0, s.efisiensi_rupiah || 0, s.progress || '', s.durasi_hari || ''
       ]);
     } else if (view === 'view-gangguan') {
       const records = state.gangguan.data;
