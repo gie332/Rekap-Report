@@ -895,8 +895,6 @@
         pengelolaTd = `
           <td${spanAttr} class="${isMerged ? 'cell-merged align-middle' : ''}">
             <strong class="text-slate-100 block">${escapeHtml(c.pengelola || '-')}</strong>
-            ${c.pic_rekanan ? `<div class="text-[11px] text-slate-400 mt-0.5"><i class="fa-solid fa-user-tie text-[10px] mr-1 text-slate-500"></i>${escapeHtml(c.pic_rekanan)}</div>` : ''}
-            ${isMerged ? `<span class="inline-flex items-center gap-1 text-[10px] text-cyan-400 font-mono mt-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20"><i class="fa-solid fa-layer-group text-[9px]"></i>${span} Link Digabung</span>` : ''}
           </td>
         `;
       }
@@ -978,7 +976,6 @@
             pengelolaTd = `
               <td${span > 1 ? ` rowspan="${span}"` : ''} class="${isMerged ? 'cell-merged align-middle' : ''}">
                 <strong class="text-slate-100 block">${escapeHtml(c.pengelola || '-')}</strong>
-                ${isMerged ? `<span class="inline-flex items-center gap-1 text-[10px] text-cyan-400 font-mono mt-1 px-1.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20"><i class="fa-solid fa-layer-group text-[9px]"></i>${span} Link</span>` : ''}
               </td>
             `;
           }
@@ -1125,7 +1122,6 @@
             pengelolaTd = `
               <td${span > 1 ? ` rowspan="${span}"` : ''} class="${isMerged ? 'cell-merged align-middle' : ''}">
                 <strong class="text-slate-100 block">${escapeHtml(c.pengelola || '-')}</strong>
-                ${isMerged ? `<span class="inline-flex items-center gap-1 text-[10px] text-cyan-400 font-mono mt-1 px-1.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20"><i class="fa-solid fa-layer-group text-[9px]"></i>${span} Link</span>` : ''}
               </td>
             `;
           }
