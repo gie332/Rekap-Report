@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Scratch / legacy dump files
+scratch_*.py
+network_infrastructure.db
+sitac_database.db
+sitac_collo_data.*
+sitac_data.*
+
+# Raw Excel files (locked when opened in Excel)
+*.xlsx
+~$*.xlsx
+*.tmp
+
+# Environment
+.env
+.venv
+env/
+venv/
+
+# Operating System
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telecom Infrastructure & Lease Operations Portal</title>
+  <meta name="description" content="Portal Terpadu Enterprise Manajemen Sewa Colocation, Skema Revenue Sharing, Monitoring Perizinan SITAC, Gangguan Darurat, dan WebGIS.">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['selector', '[data-theme="dark"]'],
+      theme: {
+        extend: {
+          colors: {
+            portal: {
+              dark: '#080c14',
+              sidebar: '#0c1220',
+              card: 'rgba(16, 24, 40, 0.85)',
+              border: 'rgba(255, 255, 255, 0.08)',
+              cyan: '#06b6d4',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              rose: '#ef4444',
+              indigo: '#6366f1'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Leaflet.js WebGIS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Custom Portal Stylesheet -->
+  <link rel="stylesheet" href="styles.css?v=2.7">
+</head>
+<body class="bg-[#080c14] text-slate-100 font-sans antialiased min-h-screen flex overflow-x-hidden">
+
+  <!-- =========================================================================
+       1. SIDEBAR NAVIGATION (STRICT MODULAR SEPARATION)
+       ========================================================================= -->
+  <aside id="portalSidebar" class="portal-sidebar shrink-0">
+    <div class="sidebar-top">
+      <!-- Portal Brand -->
+      <div class="portal-brand">
+        <div class="brand-logo-icon">
+          <i class="fa-solid fa-satellite-dish text-cyan-400 text-xl"></i>
+        </div>
+        <div class="brand-info">
+          <h1 class="brand-title">TELECOM PORTAL</h1>
+          <span class="brand-badge-pill">OPERATIONS & LEASE</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tree -->
+      <nav class="sidebar-nav">
+        <!-- 1. Executive Overview -->
+        <div class="nav-section-wrap">
+          <button class="nav-item active" data-view="view-executive">
+            <i class="fa-solid fa-chart-pie nav-icon text-cyan-400"></i>
+            <span class="nav-label">Dashboard Ringkasan</span>
+          </button>
+        </div>
+
+        <!-- 2. COLOCATION & SEWA ASET -->
+        <div class="nav-section-group collapsed" id="groupCollo">
+          <button type="button" class="section-dropdown-btn" data-toggle="groupCollo">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-building-circle-check text-indigo-400"></i>
+              <span>Colocation & Sewa Aset</span>
+            </div>
+            <i class="fa-solid fa-chevron-down section-chevron"></i>
+          </button>
+          <div class="section-items">
+            <button class="nav-item" data-view="view-collo-list">
+              <i class="fa-solid fa-server nav-icon"></i>
+              <span class="nav-label">Daftar Link & Finansial</span>
+              <span class="badge-counter badge-cyan" id="badgeNavActiveCollo">880</span>
+            </button>
+            <button class="nav-item" data-view="view-collo-rev-sharing">
+              <i class="fa-solid fa-handshake-angle nav-icon"></i>
+              <span class="nav-label">Skema Revenue Sharing</span>
+              <span class="badge-counter badge-amber" id="badgeNavRevShare">423</span>
+            </button>
+            <button class="nav-item" data-view="view-collo-alerts">
+              <i class="fa-solid fa-triangle-exclamation nav-icon"></i>
+              <span class="nav-label">Jatuh Tempo Kontrak</span>
+              <span class="badge-counter badge-rose" id="badgeNavCriticalAlerts">40</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. OPERASIONAL SITAC & LAPANGAN -->
+        <div class="nav-section-group collapsed" id="groupSitac">
+          <button type="button" class="section-dropdown-btn" data-toggle="groupSitac">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-helmet-safety text-amber-400"></i>
+              <span>Operasional SITAC & Lapangan</span>
+            </div>
+            <i class="fa-solid fa-chevron-down section-chevron"></i>
+          </button>
+          <div class="section-items">
+            <button class="nav-item" data-view="view-sitac-pa">
+              <i class="fa-solid fa-file-signature nav-icon"></i>
+              <span class="nav-label">Monitoring Perizinan (PA)</span>
+              <span class="badge-counter badge-cyan" id="badgeNavSitac">451</span>
+            </button>
+            <button class="nav-item" data-view="view-gangguan">
+              <i class="fa-solid fa-truck-fast nav-icon"></i>
+              <span class="nav-label">Tiket Gangguan Darurat</span>
+              <span class="badge-counter badge-rose" id="badgeNavGangguan">393</span>
+            </button>
+            <button class="nav-item" data-view="view-efisiensi">
+              <i class="fa-solid fa-piggy-bank nav-icon"></i>
+              <span class="nav-label">Efisiensi Negosiasi Biaya</span>
+            </button>
+            <button class="nav-item" data-view="view-pic-matrix">
+              <i class="fa-solid fa-users-gear nav-icon"></i>
+              <span class="nav-label">Beban Kerja PIC SITAC</span>
+            </button>
+            <button class="nav-item" data-view="view-webgis">
+              <i class="fa-solid fa-map-location-dot nav-icon"></i>
+              <span class="nav-label">Peta Sebaran Lokasi</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+    </div>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-bottom">
+      <div class="db-status-pill">
+        <span class="pulse-dot"></span>
+        <div class="text-[11px] leading-tight">
+          <div class="font-bold text-slate-200">SQLite + REST API</div>
+          <div class="text-slate-400">telecom_portal.db (Active)</div>
+        </div>
+      </div>
+      <button id="themeToggleBtn" class="theme-btn" title="Toggle Dark/Light Mode">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- =========================================================================
+       2. MAIN CONTENT AREA WITH TOP NAVBAR
+       ========================================================================= -->
+  <main class="portal-main flex-1 flex flex-col min-w-0">
+    <!-- TOP HEADER BAR -->
+    <header class="portal-topbar flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#080c14]/90 backdrop-blur-md sticky top-0 z-30">
+      <div class="flex items-center gap-4">
+        <button id="sidebarToggleBtn" class="lg:hidden btn-icon" title="Toggle Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="breadcrumbs">
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold" id="breadcrumbCategory">Overview</span>
+          <span class="text-slate-600 text-xs">/</span>
+          <h2 class="text-lg font-bold text-slate-100" id="breadcrumbPageTitle">Dashboard Ringkasan Eksekutif</h2>
+        </div>
+      </div>
+
+      <div class="topbar-actions flex items-center gap-2.5">
+        <!-- Quick Action: + Tambah Data -->
+        <button id="btnOpenAddModal" class="btn btn-primary text-xs shadow-lg shadow-cyan-950/40">
+          <i class="fa-solid fa-plus"></i>
+          <span>Tambah Data Baru</span>
+        </button>
+
+        <!-- Quick Export Current View -->
+        <button id="btnQuickExport" class="btn btn-secondary text-xs" title="Export Current View Data to CSV/Excel">
+          <i class="fa-solid fa-file-export"></i>
+          <span>Export CSV</span>
+        </button>
+
+        <!-- Active User Profile Pill -->
+        <div id="topbarUserProfile" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs">
+          <div id="userRoleAvatar" class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <i class="fa-solid fa-helmet-safety" id="userRoleIcon"></i>
+          </div>
+          <div class="leading-tight text-left">
+            <div class="font-bold text-slate-200 text-[11px]" id="userNameDisplay">Tim Lapangan</div>
+            <div class="text-[9px] uppercase tracking-wider text-emerald-400 font-semibold" id="userRoleDisplay">FIELD OPERATIONS</div>
+          </div>
+        </div>
+
+        <!-- Logout / Switch Account Button -->
+        <button id="btnLogout" class="btn btn-secondary text-xs hover:border-rose-500/40 hover:text-rose-400 transition" title="Keluar / Ganti Peran">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span class="hidden md:inline">Keluar</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENT VIEWS CONTAINER -->
+    <div class="portal-content-body flex-1 p-6 overflow-y-auto">
+
+      <!-- =====================================================================
+           VIEW 1: DASHBOARD RINGKASAN (EXECUTIVE OVERVIEW)
+           ===================================================================== -->
+      <section id="view-executive" class="portal-view active space-y-6">
+        <!-- Unified Metric Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Card 1: Active Circuits -->
+          <div class="kpi-card group border-cyan-500/20">
+            <div class="kpi-header">
+              <span class="kpi-title">Sirkuit Colocation Aktif</span>
+              <div class="kpi-icon-wrap bg-cyan-500/10 text-cyan-400">
+                <i class="fa-solid fa-network-wired"></i>
+              </div>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value text-cyan-400" id="execActiveCollo">880</div>
+              <div class="kpi-subtitle">
+                <span>Histori: <strong id="execHistCollo">2.243</strong> (Deact: <span id="execDeactCollo">285</span>)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Financial Margin -->
+          <div class="kpi-card group border-emerald-500/20">
+            <div class="kpi-header">
+              <span class="kpi-title">Margin Sewa Tahunan</span>
+              <div class="kpi-icon-wrap bg-emerald-500/10 text-emerald-400">
+                <i class="fa-solid fa-chart-line"></i>
+              </div>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value text-emerald-400" id="execMarginRp">Rp 2.370 M</div>
+              <div class="kpi-subtitle flex justify-between">
+                <span>Rev: <span id="execRevRp">Rp 2.404 M</span></span>
+                <span class="text-emerald-400 font-bold" id="execMarginPct">98.6%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: SITAC Projects & Savings -->
+          <div class="kpi-card group border-amber-500/20">
+            <div class="kpi-header">
+              <span class="kpi-title">SITAC Finish & Efisiensi</span>
+              <div class="kpi-icon-wrap bg-amber-500/10 text-amber-400">
+                <i class="fa-solid fa-handshake"></i>
+              </div>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value text-amber-400" id="execSitacFinish">373 <span class="text-xs text-slate-400 font-normal">/ 451 PA</span></div>
+              <div class="kpi-subtitle">
+                <span>Hemat: <strong class="text-emerald-400" id="execSitacSavings">Rp 430,65 Jt</strong> (68.3%)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: Emergency Gangguan Tickets -->
+          <div class="kpi-card group border-rose-500/20">
+            <div class="kpi-header">
+              <span class="kpi-title">Tiket Gangguan Darurat</span>
+              <div class="kpi-icon-wrap bg-rose-500/10 text-rose-400">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value text-rose-400" id="execGangguanTotal">393</div>
+              <div class="kpi-subtitle flex justify-between">
+                <span>Selesai: <strong class="text-emerald-400" id="execGangguanSelesai">96</strong></span>
+                <span>Open: <strong class="text-rose-400" id="execGangguanOpen">297</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Power BI Style Radial / Progress Gauge Meters -->
+        <div class="pbi-gauge-container">
+          <div class="pbi-gauge-tile gauge-cyan">
+            <div class="text-2xl text-cyan-400 font-bold"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400 font-medium">SITAC SLA Completion Rate</span>
+                <span class="text-cyan-400 font-bold font-mono" id="gaugeSitacRate">82.7%</span>
+              </div>
+              <div class="pbi-progress-bar-bg">
+                <div class="pbi-progress-bar-fill bg-cyan-400" id="gaugeSitacBar" style="width: 82.7%"></div>
+              </div>
+              <span class="text-[10px] text-slate-500 mt-1 block">373 dari 451 penugasan selesai</span>
+            </div>
+          </div>
+
+          <div class="pbi-gauge-tile gauge-emerald">
+            <div class="text-2xl text-emerald-400 font-bold"><i class="fa-solid fa-piggy-bank"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400 font-medium">Efisiensi Negosiasi Biaya</span>
+                <span class="text-emerald-400 font-bold font-mono" id="gaugeSavingsRate">68.3%</span>
+              </div>
+              <div class="pbi-progress-bar-bg">
+                <div class="pbi-progress-bar-fill bg-emerald-400" id="gaugeSavingsBar" style="width: 68.3%"></div>
+              </div>
+              <span class="text-[10px] text-slate-500 mt-1 block">Hemat Rp 430,65 Jt dari Rp 630,75 Jt</span>
+            </div>
+          </div>
+
+          <div class="pbi-gauge-tile gauge-amber">
+            <div class="text-2xl text-amber-400 font-bold"><i class="fa-solid fa-chart-pie"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400 font-medium">Profitabilitas Margin Sewa</span>
+                <span class="text-amber-400 font-bold font-mono" id="gaugeMarginRate">98.6%</span>
+              </div>
+              <div class="pbi-progress-bar-bg">
+                <div class="pbi-progress-bar-fill bg-amber-400" id="gaugeMarginBar" style="width: 98.6%"></div>
+              </div>
+              <span class="text-[10px] text-slate-500 mt-1 block">Margin Rp 2,37 T dari Rev Rp 2,40 T</span>
+            </div>
+          </div>
+
+          <div class="pbi-gauge-tile gauge-cyan">
+            <div class="text-2xl text-indigo-400 font-bold"><i class="fa-solid fa-headset"></i></div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400 font-medium">Resolusi Tiket Darurat</span>
+                <span class="text-indigo-400 font-bold font-mono" id="gaugeGangguanRate">24.4%</span>
+              </div>
+              <div class="pbi-progress-bar-bg">
+                <div class="pbi-progress-bar-fill bg-indigo-400" id="gaugeGangguanBar" style="width: 24.4%"></div>
+              </div>
+              <span class="text-[10px] text-slate-500 mt-1 block">96 tiket selesai dari 393 total</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Power BI Charts Grid: Row 1 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Top 10 Pengelola by Biaya Sewa -->
+          <div class="pbi-visual-card lg:col-span-2">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-ranking-star text-cyan-400"></i>
+                <span>Top 10 Pengelola Data Center (Biaya Sewa vs Revenue)</span>
+              </div>
+              <span class="pbi-visual-badge">Sirkuit Aktif</span>
+            </div>
+            <div class="p-4 h-[320px]">
+              <canvas id="chartTopPengelola"></canvas>
+            </div>
+          </div>
+
+          <!-- SITAC Status Distribution Donut -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-chart-pie text-indigo-400"></i>
+                <span>Distribusi Status SITAC</span>
+              </div>
+              <span class="pbi-visual-badge">451 PA</span>
+            </div>
+            <div class="p-4 h-[320px] flex items-center justify-center">
+              <canvas id="chartSitacStatus"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Power BI Charts Grid: Row 2 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Komposisi Jenis Sewa Sirkuit -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-layer-group text-emerald-400"></i>
+                <span>Komposisi Portofolio Jenis Sewa Sirkuit</span>
+              </div>
+              <span class="pbi-visual-badge">880 Active</span>
+            </div>
+            <div class="p-4 h-[300px] flex items-center justify-center">
+              <canvas id="chartJenisSewa"></canvas>
+            </div>
+          </div>
+
+          <!-- Status Risiko Jatuh Tempo Kontrak -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                <span>Status Risiko Jatuh Tempo Kontrak Sewa</span>
+              </div>
+              <span class="pbi-visual-badge">Active Alerts</span>
+            </div>
+            <div class="p-4 h-[300px] flex items-center justify-center">
+              <canvas id="chartExpirationDonut"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Power BI Charts Grid: Row 3 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Monthly Trends -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-arrow-trend-up text-cyan-400"></i>
+                <span>Tren Penugasan & Penyelesaian Bulanan</span>
+              </div>
+              <span class="pbi-visual-badge">2025 - 2026</span>
+            </div>
+            <div class="p-4 h-[300px]">
+              <canvas id="chartMonthlyTrend"></canvas>
+            </div>
+          </div>
+
+          <!-- Rekap Efisiensi Negosiasi Tahunan -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-coins text-amber-400"></i>
+                <span>Efisiensi Negosiasi Biaya Perizinan (Awal vs Final)</span>
+              </div>
+              <span class="pbi-visual-badge">2024 - 2026</span>
+            </div>
+            <div class="p-4 h-[300px]">
+              <canvas id="chartEfisiensiTahunan"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           VIEW 2: DAFTAR LINK & FINANSIAL (MODUL A)
+           ===================================================================== -->
+      <section id="view-collo-list" class="portal-view space-y-4">
+        <!-- Power BI Visual Analytics Grid: Colocation Portfolio -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- Chart Collo 1: Circuit Status Composition -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-chart-pie text-cyan-400"></i>
+                <span>Distribusi Status Sirkuit (Active vs Non-Active)</span>
+              </div>
+              <span class="pbi-visual-badge">Total 3.123 Sirkuit</span>
+            </div>
+            <div class="p-4 h-[250px] flex items-center justify-center">
+              <canvas id="chartColloStatusDist"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart Collo 2: Top 8 Vendors by Volume -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-server text-emerald-400"></i>
+                <span>Top 8 Pengelola Datacenter by Volume Sirkuit Aktif</span>
+              </div>
+              <span class="pbi-visual-badge">Active Circuits</span>
+            </div>
+            <div class="p-4 h-[250px]">
+              <canvas id="chartColloTopVendors"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Toolbar -->
+        <div class="filter-toolbar-card">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <!-- Status Filter Toggle (Default ACTIVE) -->
+            <div class="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-white/10">
+              <button class="collo-status-tab active" data-status="ACTIVE">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i>
+                <span>Active Only (Default)</span>
+              </button>
+              <button class="collo-status-tab" data-status="DEACTIVASI">
+                <span>Deaktivasi</span>
+              </button>
+              <button class="collo-status-tab" data-status="NON ACTIVE">
+                <span>Non-Active</span>
+              </button>
+              <button class="collo-status-tab" data-status="ALL">
+                <span>Tampilkan Semua</span>
+              </button>
+            </div>
+
+            <!-- Search Input -->
+            <div class="relative flex-1 max-w-md">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+              <input type="text" id="colloSearchInput" class="filter-input pl-9 w-full text-xs" placeholder="Cari Pelanggan, Pengelola, SID, No SO...">
+            </div>
+
+            <!-- Dropdown Filters -->
+            <div class="flex items-center gap-2">
+              <select id="colloFilterJenis" class="filter-select text-xs">
+                <option value="ALL">Semua Jenis Sewa</option>
+              </select>
+              <select id="colloFilterPengelola" class="filter-select text-xs max-w-[200px]">
+                <option value="ALL">Semua Pengelola</option>
+              </select>
+              <select id="colloSortSelect" class="filter-select text-xs">
+                <option value="margin_desc">Margin Terbesar</option>
+                <option value="rev_desc">Revenue Terbesar</option>
+                <option value="biaya_desc">Biaya Terbesar</option>
+                <option value="sisa_hari_asc">Jatuh Tempo Terdekat</option>
+              </select>
+              <button class="btn btn-primary text-xs bg-indigo-600 hover:bg-indigo-500 border-indigo-500 shadow-md shadow-indigo-950/40" id="btnOpenAddColloDirect">
+                <i class="fa-solid fa-plus"></i>
+                <span>Tambah Link Sewa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Summary Stats Bar -->
+          <div class="flex items-center justify-between text-xs text-slate-300 pt-3 mt-3 border-t border-white/5">
+            <span id="colloTableSummaryText">Menampilkan <strong>880</strong> sirkuit</span>
+            <div class="flex items-center gap-4">
+              <span>Total Rev: <strong class="text-emerald-400 font-mono" id="colloSumRev">Rp 0</strong></span>
+              <span>Total Biaya: <strong class="text-amber-400 font-mono" id="colloSumBiaya">Rp 0</strong></span>
+              <span>Total Margin: <strong class="text-cyan-400 font-mono" id="colloSumMargin">Rp 0</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Colocation Main Table -->
+        <div class="table-container-card">
+          <div class="overflow-x-auto">
+            <table class="portal-table">
+              <thead>
+                <tr>
+                  <th class="w-12">#</th>
+                  <th>Pengelola / Rekanan</th>
+                  <th>Pelanggan</th>
+                  <th>SID & No SO</th>
+                  <th>Originating & Terminating</th>
+                  <th>Layanan & Jenis</th>
+                  <th class="text-right">Revenue (1 Thn)</th>
+                  <th class="text-right">Biaya Mitra (1 Thn)</th>
+                  <th class="text-right">Margin (Rev - Biaya)</th>
+                  <th class="text-center">Status</th>
+                  <th class="text-center w-28">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="colloTableBody">
+                <!-- Rendered dynamically via app.js -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="table-pagination">
+            <div class="text-xs text-slate-400" id="colloPaginationInfo">Halaman 1 dari 36</div>
+            <div class="flex items-center gap-2">
+              <button id="colloPrevPageBtn" class="btn btn-secondary btn-sm"><i class="fa-solid fa-chevron-left"></i> Prev</button>
+              <button id="colloNextPageBtn" class="btn btn-secondary btn-sm">Next <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           VIEW 3: SKEMA REVENUE SHARING MITRA (MODUL A)
+           ===================================================================== -->
+      <section id="view-collo-rev-sharing" class="portal-view space-y-6">
+        <!-- Revenue Sharing KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="kpi-card border-amber-500/20">
+            <div class="kpi-title">Total Link Bagi Hasil</div>
+            <div class="kpi-value text-amber-400 font-mono" id="revShareTotalLinks">423</div>
+            <div class="kpi-subtitle">Skema 7.5% s/d 35%</div>
+          </div>
+          <div class="kpi-card border-emerald-500/20">
+            <div class="kpi-title">Total Revenue Pelanggan</div>
+            <div class="kpi-value text-emerald-400 font-mono" id="revShareTotalRev">Rp 51,69 M</div>
+            <div class="kpi-subtitle">Basis Perhitungan Sharing</div>
+          </div>
+          <div class="kpi-card border-cyan-500/20">
+            <div class="kpi-title">Total Biaya Bagi Hasil Mitra</div>
+            <div class="kpi-value text-cyan-400 font-mono" id="revShareTotalFee">Rp 10,62 M</div>
+            <div class="kpi-subtitle">Kewajiban Sharing Pengelola</div>
+          </div>
+          <div class="kpi-card border-indigo-500/20">
+            <div class="kpi-title">Rata-rata Persentase Bagi Hasil</div>
+            <div class="kpi-value text-indigo-400 font-mono" id="revShareAvgPct">20.0%</div>
+            <div class="kpi-subtitle">Kisaran 7.5% - 35%</div>
+          </div>
+        </div>
+
+        <!-- Power BI Visual Analytics Grid: Revenue Sharing Insights -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Chart RevShare 1: Top Mitra Portfolio -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-handshake-angle text-amber-400"></i>
+                <span>Distribusi Portofolio Mitra Revenue Sharing</span>
+              </div>
+              <span class="pbi-visual-badge">Share of Revenue</span>
+            </div>
+            <div class="p-4 h-[280px] flex items-center justify-center">
+              <canvas id="chartRevShareMitra"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart RevShare 2: Revenue vs Bagi Hasil -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-chart-column text-cyan-400"></i>
+                <span>Komparasi Revenue vs Biaya Bagi Hasil per Mitra</span>
+              </div>
+              <span class="pbi-visual-badge">Top 7 Mitra</span>
+            </div>
+            <div class="p-4 h-[280px]">
+              <canvas id="chartRevShareCompare"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Pengelola Sharing Matrix -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fa-solid fa-city text-cyan-400 mr-2"></i>Breakdown Pengelola Utama Skema Bagi Hasil</h3>
+            <span class="text-xs text-slate-400">MM2100, Patra Jasa, Solusi Jasa Teknologi, Krakatau IT, dll.</span>
+          </div>
+          <div class="panel-body overflow-x-auto">
+            <table class="portal-table">
+              <thead>
+                <tr>
+                  <th>Pengelola / Datacenter</th>
+                  <th class="text-center">Jumlah Link</th>
+                  <th class="text-right">Total Revenue Pelanggan</th>
+                  <th class="text-right">Biaya Bagi Hasil Mitra</th>
+                  <th class="text-center">Rata-rata % Sharing</th>
+                </tr>
+              </thead>
+              <tbody id="revSharePengelolaTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Detailed Revenue Sharing Links Table -->
+        <div class="table-container-card">
+          <div class="table-header-bar flex items-center justify-between p-4 border-b border-white/5">
+            <h3 class="font-bold text-sm text-slate-200">Rincian Lengkap Link Skema Revenue Sharing</h3>
+            <input type="text" id="revShareSearchInput" class="filter-input text-xs w-64" placeholder="Cari Pelanggan / Pengelola...">
+          </div>
+          <div class="overflow-x-auto">
+            <table class="portal-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Pengelola</th>
+                  <th>Pelanggan</th>
+                  <th>No SO / SID</th>
+                  <th>Terminating</th>
+                  <th class="text-right">Revenue Pelanggan</th>
+                  <th class="text-center">% Rev Sharing</th>
+                  <th class="text-right">Biaya Bagi Hasil (Otomatis)</th>
+                  <th class="text-center">Status</th>
+                  <th class="text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="revShareTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           VIEW 4: MONITORING JATUH TEMPO KONTRAK (MODUL A)
+           ===================================================================== -->
+      <section id="view-collo-alerts" class="portal-view space-y-6">
+        <!-- Urgency Alert Filter Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <button class="alert-filter-card active border-rose-500/40" data-alert-cat="CRITICAL">
+            <div class="flex items-center justify-between">
+              <span class="alert-tag text-rose-400 font-bold">🔴 CRITICAL (< 30 Hari)</span>
+              <span class="badge-pill bg-rose-500/20 text-rose-300" id="countAlertCritical">40</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Wajib segera terbit SPP/PO baru agar link tidak diputus pengelola.</p>
+          </button>
+
+          <button class="alert-filter-card border-amber-500/40" data-alert-cat="WARNING">
+            <div class="flex items-center justify-between">
+              <span class="alert-tag text-amber-400 font-bold">🟡 WARNING (30 - 60 Hari)</span>
+              <span class="badge-pill bg-amber-500/20 text-amber-300" id="countAlertWarning">41</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Tahap konfirmasi perpanjangan sewa dengan mitra pengelola.</p>
+          </button>
+
+          <button class="alert-filter-card border-emerald-500/40" data-alert-cat="SAFE">
+            <div class="flex items-center justify-between">
+              <span class="alert-tag text-emerald-400 font-bold">🟢 SAFE (> 60 Hari)</span>
+              <span class="badge-pill bg-emerald-500/20 text-emerald-300" id="countAlertSafe">383</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Masa berlaku kontrak aman dalam jangka operasional wajar.</p>
+          </button>
+
+          <button class="alert-filter-card border-slate-500/40" data-alert-cat="EXPIRED">
+            <div class="flex items-center justify-between">
+              <span class="alert-tag text-slate-300 font-bold">⚫ EXPIRED / OVERDUE</span>
+              <span class="badge-pill bg-slate-500/20 text-slate-300" id="countAlertExpired">416</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Kontrak lewat jatuh tempo yang memerlukan audit penagihan/PO susulan.</p>
+          </button>
+        </div>
+
+        <!-- Power BI Visual Analytics Grid: Expiration Distribution -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Chart Alerts 1: Urgency Category Donut -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-chart-pie text-rose-400"></i>
+                <span>Komposisi Urgensi Masa Berlaku Kontrak</span>
+              </div>
+              <span class="pbi-visual-badge">880 Sirkuit Aktif</span>
+            </div>
+            <div class="p-4 h-[280px] flex items-center justify-center">
+              <canvas id="chartAlertsCategoryDonut"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart Alerts 2: Days Remaining Histogram -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-chart-bar text-amber-400"></i>
+                <span>Sebaran Rentang Sisa Hari Jatuh Tempo</span>
+              </div>
+              <span class="pbi-visual-badge">Proyeksi Urgensi</span>
+            </div>
+            <div class="p-4 h-[280px]">
+              <canvas id="chartAlertsSisaHari"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expiration Alert Table -->
+        <div class="table-container-card">
+          <div class="table-header-bar flex items-center justify-between p-4 border-b border-white/5">
+            <div>
+              <h3 class="font-bold text-sm text-slate-200" id="alertTableTitle">Daftar Kontrak: CRITICAL (< 30 Hari)</h3>
+              <p class="text-xs text-slate-400">Monitoring nomor SPP/PO, PIC admin perizinan, dan catatan proses.</p>
+            </div>
+            <input type="text" id="alertSearchInput" class="filter-input text-xs w-64" placeholder="Cari Pelanggan, SPP, Pengelola...">
+          </div>
+          <div class="overflow-x-auto">
+            <table class="portal-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Pengelola / Datacenter</th>
+                  <th>Pelanggan</th>
+                  <th>SID & No SO</th>
+                  <th>Tgl Berakhir</th>
+                  <th class="text-center">Sisa Hari</th>
+                  <th class="text-center">Kategori Urgensi</th>
+                  <th>No SPP / PO Baru</th>
+                  <th>Proses Admin</th>
+                  <th>PIC Admin</th>
+                  <th class="text-center">Aksi Cepat</th>
+                </tr>
+              </thead>
+              <tbody id="alertTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           VIEW 5: MONITORING PERIZINAN PROYEK PA (MODUL B)
+           ===================================================================== -->
+      <section id="view-sitac-pa" class="portal-view space-y-4">
+        <!-- Power BI Visual Analytics Grid: SITAC Operations -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- Chart SITAC 1: SLA Aging -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-stopwatch text-cyan-400"></i>
+                <span>Distribusi SLA Aging Pengerjaan Lapangan</span>
+              </div>
+              <span class="pbi-visual-badge">Durasi Hari</span>
+            </div>
+            <div class="p-4 h-[250px]">
+              <canvas id="chartSitacAging"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart SITAC 2: Status Breakdown -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-chart-pie text-emerald-400"></i>
+                <span>Proporsi Status Hasil Penugasan (PA)</span>
+              </div>
+              <span class="pbi-visual-badge">Total 451 PA</span>
+            </div>
+            <div class="p-4 h-[250px] flex items-center justify-center">
+              <canvas id="chartSitacStatusDetail"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-toolbar-card">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <!-- Status Pills -->
+            <div class="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-white/10" id="sitacStatusTabs">
+              <button class="sitac-tab-btn active" data-status="ALL">Semua (<span id="sitacTotalBadge">451</span>)</button>
+              <button class="sitac-tab-btn" data-status="Finish">Finish (<span id="sitacFinishBadge">373</span>)</button>
+              <button class="sitac-tab-btn" data-status="Ongoing">Ongoing (<span id="sitacOngoingBadge">10</span>)</button>
+              <button class="sitac-tab-btn" data-status="Hold">Hold (<span id="sitacHoldBadge">5</span>)</button>
+              <button class="sitac-tab-btn" data-status="Cancel">Cancel (<span id="sitacCancelBadge">63</span>)</button>
+            </div>
+
+            <!-- Search Input -->
+            <div class="relative flex-1 max-w-xs">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+              <input type="text" id="sitacSearchInput" class="filter-input pl-9 w-full text-xs" placeholder="Cari No PA, Pelanggan, PIC...">
+            </div>
+
+            <!-- Filters -->
+            <div class="flex items-center gap-2">
+              <select id="sitacFilterPic" class="filter-select text-xs">
+                <option value="ALL">Semua PIC SITAC</option>
+              </select>
+              <select id="sitacFilterAging" class="filter-select text-xs">
+                <option value="ALL">Semua Aging SLA</option>
+                <option value="green">🟢 Hijau (&le; 7 Hari)</option>
+                <option value="yellow">🟡 Kuning (8 - 14 Hari)</option>
+                <option value="red">🔴 Merah (> 14 Hari)</option>
+              </select>
+              <select id="sitacFilterYear" class="filter-select text-xs">
+                <option value="ALL">Semua Tahun</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+              <button class="btn btn-primary text-xs shadow-md shadow-cyan-950/40" id="btnOpenAddSitacDirect">
+                <i class="fa-solid fa-plus"></i>
+                <span>Input Proyek PA</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SITAC Main Table -->
+        <div class="table-container-card">
+          <div class="overflow-x-auto">
+            <table class="portal-table">
+              <thead>
+                <tr>
+                  <th class="w-12">#</th>
+                  <th>Nomor PA</th>
+                  <th>Pelanggan</th>
+                  <th>PIC SITAC</th>
+                  <th>Terminating / Rute</th>
+                  <th class="text-right">Biaya Awal</th>
+                  <th class="text-right">Biaya Final</th>
+                  <th class="text-right">Penghematan</th>
+                  <th class="text-center">Status</th>
+                  <th class="text-center">Aging SLA</th>
+                  <th>Tgl Dispos & Close</th>
+                  <th class="text-center w-28">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="sitacTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="table-pagination">
+            <div class="text-xs text-slate-400" id="sitacPaginationInfo">Halaman 1 dari 19</div>
+            <div class="flex items-center gap-2">
+              <button id="sitacPrevPageBtn" class="btn btn-secondary btn-sm"><i class="fa-solid fa-chevron-left"></i> Prev</button>
+              <button id="sitacNextPageBtn" class="btn btn-secondary btn-sm">Next <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           VIEW 6: TIKET GANGGUAN DARURAT (INCIDENT SLA H+0/H+1)
+           ===================================================================== -->
+      <section id="view-gangguan" class="portal-view space-y-4">
+        <!-- Power BI Visual Analytics Grid: Emergency Tickets -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- Chart Gangguan 1: Incident Types -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                <span>Distribusi Kategori Insiden / Pekerjaan Darurat</span>
+              </div>
+              <span class="pbi-visual-badge">Top Kasus</span>
+            </div>
+            <div class="p-4 h-[250px]">
+              <canvas id="chartGangguanJenis"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart Gangguan 2: SLA Status -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-hourglass-half text-amber-400"></i>
+                <span>Status Penyelesaian Insiden (SLA H+0 / H+1)</span>
+              </div>
+              <span class="pbi-visual-badge">393 Tiket</span>
+            </div>
+            <div class="p-4 h-[250px] flex items-center justify-center">
+              <canvas id="chartGangguanSla"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toolbar & Incident Target Pill -->
+        <div class="filter-toolbar-card flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-rose-500/10 text-rose-400 rounded-lg">
+              <i class="fa-solid fa-bolt text-lg"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-slate-100">Pemeliharaan & Perizinan Darurat Lapangan</h3>
+              <p class="text-xs text-slate-400">Target Incident SLA: <strong class="text-amber-400">H+0 s/d H+1</strong> (Kabel putus, perapihan utilitas, pemindahan tiang)</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-white/10" id="gangguanStatusTabs">
+              <button class="gangguan-tab-btn active" data-status="ALL">Semua (393)</button>
+              <button class="gangguan-tab-btn" data-status="0">Proses / Open (297)</button>
+              <button class="gangguan-tab-btn" data-status="1">Selesai (96)</button>
+            </div>
+            <input type="text" id="gangguanSearchInput" class="filter-input text-xs w-64" placeholder="Cari Tiket, Lokasi, PIC...">
+            <button class="btn btn-primary text-xs bg-rose-600 hover:bg-rose-500 border-rose-500 shadow-md shadow-rose-950/40" id="btnOpenAddGangguanDirect">
+              <i class="fa-solid fa-plus"></i>
+              <span>Lapor Gangguan Baru</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Gangguan Table -->
+        <div class="table-container-card">
+          <div class="overflow-x-auto">
+            <table class="portal-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nomor Tiket</th>
+                  <th>Tgl Disposisi</th>
+                  <th>Tgl Selesai</th>
+                  <th>Lokasi Gangguan / Terminating</th>
+                  <th>Jenis Insiden</th>
+                  <th>PIC Perizinan</th>
+                  <th class="text-right">Biaya Perbaikan</th>
+                  <th class="text-center">Status</th>
+                  <th>Update Lapangan</th>
+                  <th class="text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="gangguanTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           VIEW 7: REKAP EFISIENSI BIAYA NEGOSIASI (MODUL B)
+           ===================================================================== -->
+      <section id="view-efisiensi" class="portal-view space-y-6">
+        <!-- Power BI Visual Analytics Grid: Cost Negotiation Efficiency -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Chart Efisiensi 1: Awal vs Final -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-scale-balanced text-amber-400"></i>
+                <span>Komparasi Biaya Permintaan Awal vs Realisasi Akhir</span>
+              </div>
+              <span class="pbi-visual-badge">2024 - 2026</span>
+            </div>
+            <div class="p-4 h-[280px]">
+              <canvas id="chartEfisiensiCompare"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart Efisiensi 2: Efficiency % Trend -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-arrow-trend-up text-emerald-400"></i>
+                <span>Tren Kenaikan Rasio Penghematan Negosiasi (%)</span>
+              </div>
+              <span class="pbi-visual-badge">Performance Target</span>
+            </div>
+            <div class="p-4 h-[280px]">
+              <canvas id="chartEfisiensiPct"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="panel-title"><i class="fa-solid fa-coins text-amber-400 mr-2"></i>Rekapitulasi Efisiensi Biaya Perizinan (Tahun 2024 - 2026)</h3>
+              <p class="text-xs text-slate-400">Perbandingan perizinan berbiaya vs tanpa biaya (Zero Cost) hasil negosiasi tim SITAC.</p>
+            </div>
+            <button id="btnExportEfisiensi" class="btn btn-secondary text-xs flex items-center gap-1.5" title="Unduh CSV Rekap Efisiensi">
+              <i class="fa-solid fa-file-arrow-down text-amber-400"></i>
+              <span>Unduh CSV Efisiensi</span>
+            </button>
+          </div>
+          <div class="panel-body overflow-x-auto">
+            <table class="portal-table">
+              <thead>
+                <tr>
+                  <th>Tahun Anggaran</th>
+                  <th class="text-center">Total Disposisi PA</th>
+                  <th class="text-center">Ada Biaya</th>
+                  <th class="text-center">Tanpa Biaya (Zero Cost)</th>
+                  <th class="text-right">Biaya Pengajuan Awal</th>
+                  <th class="text-right">Realisasi Biaya Akhir</th>
+                  <th class="text-right">Nominal Penghematan</th>
+                  <th class="text-center">Efisiensi %</th>
+                </tr>
+              </thead>
+              <tbody id="rekapEfisiensiTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           VIEW 8: BEBAN KERJA PIC PERIZINAN (MODUL B)
+           ===================================================================== -->
+      <section id="view-pic-matrix" class="portal-view space-y-6">
+        <!-- Power BI Visual Analytics Grid: PIC Workload & Performance -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Chart PIC 1: Workload Breakdown -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-people-carry-box text-cyan-400"></i>
+                <span>Distribusi Total Beban Kerja (PA vs Gangguan)</span>
+              </div>
+              <span class="pbi-visual-badge">7 PIC SITAC</span>
+            </div>
+            <div class="p-4 h-[280px]">
+              <canvas id="chartPicWorkload"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart PIC 2: Finish Rate Comparison -->
+          <div class="pbi-visual-card">
+            <div class="pbi-visual-header">
+              <div class="pbi-visual-title">
+                <i class="fa-solid fa-trophy text-amber-400"></i>
+                <span>Tingkat Keberhasilan Penyelesaian / Finish Rate (%)</span>
+              </div>
+              <span class="pbi-visual-badge">Efektivitas Tim</span>
+            </div>
+            <div class="p-4 h-[280px]">
+              <canvas id="chartPicFinishRate"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="panel-title"><i class="fa-solid fa-users text-cyan-400 mr-2"></i>Matriks Kinerja & Leaderboard PIC SITAC</h3>
+              <p class="text-xs text-slate-400">Evaluasi total penugasan, persentase penyelesaian, total efisiensi negosiasi, dan penanganan gangguan.</p>
+            </div>
+            <button id="btnExportPicMatrix" class="btn btn-secondary text-xs flex items-center gap-1.5" title="Unduh CSV Matriks PIC">
+              <i class="fa-solid fa-file-arrow-down text-cyan-400"></i>
+              <span>Unduh CSV PIC</span>
+            </button>
+          </div>
+          <div class="panel-body overflow-x-auto">
+            <table class="portal-table">
+              <thead>
+                <tr>
+                  <th>Nama PIC SITAC</th>
+                  <th class="text-center">Total Penugasan</th>
+                  <th class="text-center">Finish</th>
+                  <th class="text-center">Ongoing / Hold</th>
+                  <th class="text-center">Cancel</th>
+                  <th class="text-center">Finish Rate</th>
+                  <th class="text-right">Biaya Awal</th>
+                  <th class="text-right">Biaya Final</th>
+                  <th class="text-right">Total Penghematan</th>
+                  <th class="text-center">Rata-rata SLA</th>
+                  <th class="text-center">Tiket Gangguan</th>
+                </tr>
+              </thead>
+              <tbody id="picMatrixTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           VIEW 9: PETA SEBARAN LOKASI (WEBGIS LEAFLET)
+           ===================================================================== -->
+      <section id="view-webgis" class="portal-view space-y-4">
+        <!-- Map Controls & Layer Selector Bar -->
+        <div class="map-controls-bar flex items-center justify-between p-3 bg-slate-900/90 rounded-xl border border-white/10 shadow-lg">
+          <!-- Status Filters -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-xs font-semibold text-slate-400 mr-1"><i class="fa-solid fa-filter text-cyan-400"></i> Status:</span>
+            <button class="map-tag-btn active" data-status="ALL">Semua Pin</button>
+            <button class="map-tag-btn" data-status="Finish">🟢 Finish</button>
+            <button class="map-tag-btn" data-status="Ongoing">🟡 Ongoing</button>
+            <button class="map-tag-btn" data-status="Hold">🟡 Hold</button>
+            <button class="map-tag-btn" data-status="Cancel">🔴 Cancel</button>
+          </div>
+
+          <!-- Base Map Layer Switchers -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-xs font-semibold text-slate-400 mr-1"><i class="fa-solid fa-layer-group text-amber-400"></i> Tampilan:</span>
+            <button type="button" class="map-layer-btn active" id="btnLayerOsm" data-layer="osm"><i class="fa-solid fa-map"></i> Peta Standar</button>
+            <button type="button" class="map-layer-btn" id="btnLayerEsri" data-layer="esri"><i class="fa-solid fa-satellite"></i> Satelit Riil</button>
+            <button type="button" class="map-layer-btn" id="btnLayerDark" data-layer="dark"><i class="fa-solid fa-moon"></i> Mode Gelap</button>
+          </div>
+
+          <!-- Actions & Pin Counter -->
+          <div class="flex items-center gap-2">
+            <span class="map-counter-pill" id="mapCounterPill">
+              <i class="fa-solid fa-location-dot animate-pulse"></i>
+              <span id="mapPinCount">451</span> Titik Terpetakan
+            </span>
+            <button id="btnFitMapBounds" class="btn btn-secondary text-xs" title="Perbesar ke seluruh titik lokasi"><i class="fa-solid fa-expand"></i> Fokus Titik</button>
+            <button id="btnResetWebgisView" class="btn btn-secondary text-xs" title="Kembali ke pusat Jakarta"><i class="fa-solid fa-crosshairs"></i> Reset</button>
+          </div>
+        </div>
+
+        <!-- Main Leaflet Map Container -->
+        <div class="map-wrapper-card rounded-xl border border-white/10 overflow-hidden shadow-2xl relative">
+          <div id="portalLeafletMap" class="w-full h-[640px]"></div>
+          
+          <!-- Quick Map Floating Info Overlay -->
+          <div class="absolute bottom-4 left-4 z-[500] bg-slate-900/90 backdrop-blur-md border border-white/15 px-3 py-2 rounded-lg text-[11px] text-slate-300 shadow-xl max-w-sm pointer-events-auto">
+            <div class="font-bold text-white mb-0.5 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-info text-cyan-400"></i>
+              <span>Panduan Interaksi Peta</span>
+            </div>
+            <div>Klik lingkaran pin mana pun untuk melihat nomor PA, Pelanggan, Lokasi terminasi, PIC, dan Biaya final.</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- =========================================================================
+       MODALS: (1) TAMBAH DATA, (2) QUICK EDIT, (3) DETAIL
+       ========================================================================= -->
+
+  <!-- =========================================================================
+       MODAL 1A: FORM TAMBAH TIKET GANGGUAN DARURAT
+       ========================================================================= -->
+  <div id="modalAddGangguan" class="portal-modal-overlay" style="display: none;">
+    <div class="portal-modal-card max-w-xl">
+      <div class="modal-top border-b border-rose-500/20">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20">
+            <i class="fa-solid fa-truck-fast text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-100">Lapor Tiket Gangguan Darurat</h3>
+            <p class="text-xs text-slate-400">Pencatatan insiden kabel FO putus, relokasi utilitas, dan penanganan lapangan.</p>
+          </div>
+        </div>
+        <button class="modal-close-icon" id="btnCloseAddGangguan"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="modal-body p-6 overflow-y-auto max-h-[75vh]">
+        <form id="formAddGangguan" class="space-y-3.5">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Nomor Tiket (Opsional)</label>
+              <input type="text" name="no_tiket" class="filter-input w-full text-xs" placeholder="Auto-generate jika dikosongkan">
+            </div>
+            <div>
+              <label class="form-label">PIC Perizinan Lapangan *</label>
+              <input type="text" name="pic_perijinan" class="filter-input w-full text-xs" required placeholder="Nama PIC SITAC (contoh: agus.prianto)">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Lokasi / Terminating Gangguan *</label>
+            <input type="text" name="terminating" class="filter-input w-full text-xs" required placeholder="Jl. Sudirman No 1, Gedung...">
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="form-label">Jenis Gangguan</label>
+              <select name="jenis_gangguan" class="filter-select w-full text-xs">
+                <option value="FO Cut / Utilitas">FO Cut / Utilitas</option>
+                <option value="Relokasi Tiang">Relokasi Tiang</option>
+                <option value="Perapihan Kabel">Perapihan Kabel</option>
+                <option value="Pembangunan Saluran">Pembangunan Saluran</option>
+                <option value="Maintenance Rutin">Maintenance Rutin</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Estimasi Biaya (Rp)</label>
+              <input type="number" name="biaya_gangguan" class="filter-input w-full text-xs" value="0">
+            </div>
+            <div>
+              <label class="form-label">Target SLA</label>
+              <select name="sla_target" class="filter-select w-full text-xs">
+                <option value="H+0">H+0 (Hari yang sama)</option>
+                <option value="H+1" selected>H+1 (Maks 24 Jam)</option>
+                <option value="H+2">H+2</option>
+                <option value="H+3">H+3</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Tanggal Disposisi Tiket</label>
+              <input type="date" name="tgl_dispos" class="filter-input w-full text-xs" id="addGangguanDateDispos">
+            </div>
+            <div>
+              <label class="form-label">Status Penyelesaian Awal</label>
+              <select name="is_selesai" class="filter-select w-full text-xs">
+                <option value="0">Proses / Open (Sedang Dikerjakan)</option>
+                <option value="1">Selesai (Close Incident)</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Catatan Update Penanganan</label>
+            <textarea name="update_gangguan" rows="2" class="filter-input w-full text-xs" placeholder="Detail penanganan tim teknis di lapangan..."></textarea>
+          </div>
+          <div class="pt-2 text-right">
+            <button type="submit" class="btn btn-primary text-xs bg-rose-600 hover:bg-rose-500 border-rose-500"><i class="fa-solid fa-save"></i> Simpan Tiket Gangguan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 1B: FORM TAMBAH PROYEK PERIZINAN SITAC (PA)
+       ========================================================================= -->
+  <div id="modalAddSitac" class="portal-modal-overlay" style="display: none;">
+    <div class="portal-modal-card max-w-xl">
+      <div class="modal-top border-b border-cyan-500/20">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/20">
+            <i class="fa-solid fa-file-signature text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-100">Tambah Proyek Perizinan (SITAC PA)</h3>
+            <p class="text-xs text-slate-400">Pencatatan rute izin jalur FO, instansi terkait, dan negosiasi biaya.</p>
+          </div>
+        </div>
+        <button class="modal-close-icon" id="btnCloseAddSitac"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="modal-body p-6 overflow-y-auto max-h-[75vh]">
+        <form id="formAddSitac" class="space-y-3.5">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Nomor PA *</label>
+              <input type="text" name="no_pa" class="filter-input w-full text-xs" required placeholder="Contoh: A111401004888">
+            </div>
+            <div>
+              <label class="form-label">Nama Pelanggan *</label>
+              <input type="text" name="pelanggan" class="filter-input w-full text-xs" required placeholder="Nama Instansi / PT Pelanggan">
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="form-label">Project Technical Lead (PTL)</label>
+              <input type="text" name="ptl" class="filter-input w-full text-xs" placeholder="Nama PTL">
+            </div>
+            <div>
+              <label class="form-label">PIC SITAC *</label>
+              <input type="text" name="pic_perijinan" class="filter-input w-full text-xs" required placeholder="Nama PIC SITAC">
+            </div>
+            <div>
+              <label class="form-label">Progress Status</label>
+              <select name="progress" class="filter-select w-full text-xs">
+                <option value="Ongoing" selected>Ongoing</option>
+                <option value="Finish">Finish</option>
+                <option value="Hold">Hold</option>
+                <option value="Cancel">Cancel</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Alamat / Rute Terminating *</label>
+            <input type="text" name="terminating" class="filter-input w-full text-xs" required placeholder="Jl. MH Thamrin No. 1, Jakarta Pusat">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Biaya Pengajuan Awal (Rp)</label>
+              <input type="number" name="biaya_permintaan_awal" class="filter-input w-full text-xs" value="0" placeholder="0">
+            </div>
+            <div>
+              <label class="form-label">Biaya Final Realisasi (Rp)</label>
+              <input type="number" name="biaya_final" class="filter-input w-full text-xs" value="0" placeholder="0">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Tanggal Disposisi PA</label>
+              <input type="date" name="date_dispos" class="filter-input w-full text-xs" id="addSitacDateDispos">
+            </div>
+            <div>
+              <label class="form-label">Tanggal Selesai (Jika Finish)</label>
+              <input type="date" name="date_close" class="filter-input w-full text-xs">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Catatan Update Lapangan</label>
+            <textarea name="update_pekerjaan" rows="2" class="filter-input w-full text-xs" placeholder="Progress negosiasi biaya, instansi perizinan, dll..."></textarea>
+          </div>
+          <div class="pt-2 text-right">
+            <button type="submit" class="btn btn-primary text-xs"><i class="fa-solid fa-save"></i> Simpan Disposisi SITAC</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 1C: FORM TAMBAH LINK SEWA COLOCATION (MODUL A)
+       ========================================================================= -->
+  <div id="modalAddCollo" class="portal-modal-overlay" style="display: none;">
+    <div class="portal-modal-card max-w-2xl">
+      <div class="modal-top border-b border-indigo-500/20">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+            <i class="fa-solid fa-server text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-100">Tambah Kontrak Sewa Colocation Baru</h3>
+            <p class="text-xs text-slate-400">Pencatatan sirkuit colocation data center, tagihan, dan revenue sharing.</p>
+          </div>
+        </div>
+        <button class="modal-close-icon" id="btnCloseAddCollo"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="modal-body p-6 overflow-y-auto max-h-[75vh]">
+        <form id="formAddCollo" class="space-y-3.5">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Pengelola / Datacenter *</label>
+              <input type="text" name="pengelola" class="filter-input w-full text-xs" required placeholder="Nama Mitra Pengelola (contoh: NTT, APJII)">
+            </div>
+            <div>
+              <label class="form-label">Pelanggan *</label>
+              <input type="text" name="pelanggan" class="filter-input w-full text-xs" required placeholder="Nama Pelanggan">
+            </div>
+          </div>
+          <div class="grid grid-cols-4 gap-3">
+            <div>
+              <label class="form-label">Jenis Sewa</label>
+              <select name="jenis_sewa" class="filter-select w-full text-xs">
+                <option value="Colocation" selected>Colocation</option>
+                <option value="Revenue Sharing">Revenue Sharing</option>
+                <option value="Interkoneksi">Interkoneksi</option>
+                <option value="Rack Space">Rack Space</option>
+                <option value="Cross Connect">Cross Connect</option>
+                <option value="Space Tower">Space Tower</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Status Sirkuit</label>
+              <select name="status" class="filter-select w-full text-xs">
+                <option value="ACTIVE" selected>ACTIVE</option>
+                <option value="NON ACTIVE">NON ACTIVE</option>
+                <option value="DEACTIVASI">DEACTIVASI</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">No SO</label>
+              <input type="text" name="no_so" class="filter-input w-full text-xs" placeholder="AR/ACT/2401/...">
+            </div>
+            <div>
+              <label class="form-label">SID Sirkuit</label>
+              <input type="text" name="sid" class="filter-input w-full text-xs" placeholder="1000234">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Revenue Sewa Tahunan (Rp)</label>
+              <input type="number" name="rev_sewa_tahun" class="filter-input w-full text-xs" value="0">
+            </div>
+            <div>
+              <label class="form-label">Biaya Sewa Mitra Tahunan (Rp)</label>
+              <input type="number" name="biaya_sewa_tahun" class="filter-input w-full text-xs" value="0">
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="form-label">Rev Sharing (%) (contoh: 20)</label>
+              <input type="number" step="0.01" name="rev_sharing_pct" class="filter-input w-full text-xs" value="0" placeholder="20">
+            </div>
+            <div>
+              <label class="form-label">Tgl Mulai Kontrak</label>
+              <input type="date" name="start_date" class="filter-input w-full text-xs">
+            </div>
+            <div>
+              <label class="form-label">Tgl Jatuh Tempo *</label>
+              <input type="date" name="end_date" class="filter-input w-full text-xs" required>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label">Nomor SPP / PO</label>
+              <input type="text" name="spp" class="filter-input w-full text-xs" placeholder="SPP-2024-xxx">
+            </div>
+            <div>
+              <label class="form-label">Deskripsi Layanan</label>
+              <input type="text" name="layanan" class="filter-input w-full text-xs" placeholder="Full Rack 42U / Power 2.2 kVA">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Catatan Keterangan Admin</label>
+            <textarea name="keterangan" rows="2" class="filter-input w-full text-xs" placeholder="Keterangan kontrak / rekanan..."></textarea>
+          </div>
+          <div class="pt-2 text-right">
+            <button type="submit" class="btn btn-primary text-xs bg-indigo-600 hover:bg-indigo-500 border-indigo-500"><i class="fa-solid fa-save"></i> Simpan Link Sewa</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 1D: PILIH KATEGORI TAMBAH DATA (ACTION SHEET)
+       ========================================================================= -->
+  <div id="modalPickAddType" class="portal-modal-overlay" style="display: none;">
+    <div class="portal-modal-card max-w-lg">
+      <div class="modal-top">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-cyan-500/10 text-cyan-400 rounded-lg">
+            <i class="fa-solid fa-layer-group text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-100">Pilih Kategori Data Baru</h3>
+            <p class="text-xs text-slate-400">Silakan pilih jenis form data yang ingin ditambahkan</p>
+          </div>
+        </div>
+        <button class="modal-close-icon" id="btnClosePickAdd"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body p-6 space-y-3">
+        <!-- Pilihan 1: Tiket Gangguan -->
+        <button type="button" class="w-full text-left p-3.5 rounded-xl border border-white/10 hover:border-rose-500/50 bg-white/5 hover:bg-rose-500/10 transition flex items-center gap-3.5 group cursor-pointer" id="btnPickGangguan">
+          <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center shrink-0 text-base group-hover:scale-105 transition">
+            <i class="fa-solid fa-truck-fast"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm text-slate-100 group-hover:text-rose-300">Tiket Gangguan Darurat</div>
+            <div class="text-xs text-slate-400">Insiden FO Cut, tiang roboh, utilitas, dan SLA darurat.</div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-slate-500 text-xs group-hover:text-rose-400 transition"></i>
+        </button>
+
+        <!-- Pilihan 2: Proyek SITAC -->
+        <button type="button" class="w-full text-left p-3.5 rounded-xl border border-white/10 hover:border-cyan-500/50 bg-white/5 hover:bg-cyan-500/10 transition flex items-center gap-3.5 group cursor-pointer" id="btnPickSitac">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center shrink-0 text-base group-hover:scale-105 transition">
+            <i class="fa-solid fa-file-signature"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm text-slate-100 group-hover:text-cyan-300">Proyek Perizinan (SITAC PA)</div>
+            <div class="text-xs text-slate-400">Penugasan rute izin FO, PTL, PIC, dan biaya negosiasi retribusi.</div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-slate-500 text-xs group-hover:text-cyan-400 transition"></i>
+        </button>
+
+        <!-- Pilihan 3: Colocation (Hidden if Lapangan) -->
+        <button type="button" class="w-full text-left p-3.5 rounded-xl border border-white/10 hover:border-indigo-500/50 bg-white/5 hover:bg-indigo-500/10 transition flex items-center gap-3.5 group cursor-pointer" id="btnPickCollo">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0 text-base group-hover:scale-105 transition">
+            <i class="fa-solid fa-server"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm text-slate-100 group-hover:text-indigo-300">Link Sewa Colocation</div>
+            <div class="text-xs text-slate-400">Kontrak sewa rak data center, biaya pengelola & revenue sharing.</div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-slate-500 text-xs group-hover:text-indigo-400 transition"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: QUICK EDIT STATUS (LIVE SQLite UPDATE) -->
+  <div id="modalQuickEdit" class="portal-modal-overlay" style="display: none;">
+    <div class="portal-modal-card max-w-lg">
+      <div class="modal-top">
+        <div>
+          <h3 class="font-bold text-sm text-slate-100" id="quickEditModalTitle">Quick Update Status</h3>
+          <p class="text-xs text-slate-400" id="quickEditModalSub">Tersimpan langsung ke database SQLite</p>
+        </div>
+        <button class="modal-close-icon" id="btnCloseQuickEdit"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body p-6">
+        <form id="formQuickEdit" class="space-y-4">
+          <input type="hidden" id="quickEditTargetType">
+          <input type="hidden" id="quickEditTargetId">
+
+          <div id="quickEditDynamicFields" class="space-y-3">
+            <!-- Injected dynamically based on record type -->
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" class="btn btn-secondary text-xs" id="btnCancelQuickEdit">Batal</button>
+            <button type="submit" class="btn btn-primary text-xs"><i class="fa-solid fa-check"></i> Simpan Perubahan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: DETAIL RINCIAN MODAL -->
+  <div id="modalDetail" class="portal-modal-overlay" style="display: none;">
+    <div class="portal-modal-card max-w-xl">
+      <div class="modal-top">
+        <div>
+          <h3 class="font-bold text-base text-slate-100" id="detailTitle">Rincian Data</h3>
+          <p class="text-xs text-slate-400" id="detailSubtitle">-</p>
+        </div>
+        <button class="modal-close-icon" id="btnCloseDetail"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body p-6" id="detailContent">
+        <!-- Dynamic detail grid -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 0: AUTHENTICATION / LOGIN SCREEN (ROLE-BASED ACCESS)
+       ========================================================================= -->
+  <div id="loginOverlay" class="login-screen-overlay" style="display: none;">
+    <div class="login-card-container">
+      <!-- Portal Brand Logo & Glow -->
+      <div class="login-brand-header text-center mb-6">
+        <div class="login-logo-glow mx-auto mb-3">
+          <i class="fa-solid fa-satellite-dish text-cyan-400 text-2xl"></i>
+        </div>
+        <h2 class="text-xl font-extrabold tracking-wide text-white">TELECOM OPERATIONS PORTAL</h2>
+        <p class="text-xs text-slate-400 mt-1">Sistem Terpadu Manajemen Lapangan & Sewa Infrastruktur</p>
+      </div>
+
+      <!-- Quick Role Selection / 1-Click Access -->
+      <div class="quick-role-section mb-5">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center mb-3">
+          ⚡ Akses Cepat Berdasarkan Peran
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Button 1: Tim Lapangan -->
+          <button type="button" class="quick-role-btn role-lapangan-btn" id="btnQuickLoginLapangan">
+            <div class="role-icon-box bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+              <i class="fa-solid fa-helmet-safety text-lg"></i>
+            </div>
+            <div class="role-text-box text-left">
+              <div class="role-name text-emerald-300 font-bold text-xs">Tim Lapangan</div>
+              <div class="role-desc text-[10px] text-slate-400">Khusus SITAC, Insiden & Peta</div>
+            </div>
+          </button>
+
+          <!-- Button 2: Manajemen / Admin -->
+          <button type="button" class="quick-role-btn role-admin-btn" id="btnQuickLoginAdmin">
+            <div class="role-icon-box bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+              <i class="fa-solid fa-shield-halved text-lg"></i>
+            </div>
+            <div class="role-text-box text-left">
+              <div class="role-name text-cyan-300 font-bold text-xs">Manajemen / Admin</div>
+              <div class="role-desc text-[10px] text-slate-400">Akses Penuh Seluruh Modul</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="relative flex items-center justify-center my-4">
+        <div class="border-t border-white/10 w-full"></div>
+        <span class="bg-[#101828] px-3 text-[10px] text-slate-500 uppercase tracking-widest absolute">atau masuk manual</span>
+      </div>
+
+      <!-- Manual Login Form -->
+      <form id="formLogin" class="space-y-3.5">
+        <div id="loginErrorAlert" class="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs hidden">
+          <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span id="loginErrorMsg">Username atau password salah</span>
+        </div>
+
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Username</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-3 top-3 text-slate-500 text-xs"></i>
+            <input type="text" id="loginUsername" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white" placeholder="Contoh: lapangan atau admin" required>
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Password</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3 top-3 text-slate-500 text-xs"></i>
+            <input type="password" id="loginPassword" class="filter-input w-full pl-8 pr-9 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white" placeholder="••••••••" required>
+            <button type="button" id="btnTogglePassword" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 text-xs">
+              <i class="fa-solid fa-eye" id="passwordEyeIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="btnLoginSubmit" class="btn btn-primary w-full justify-center py-2.5 text-xs font-bold tracking-wide mt-2 shadow-lg shadow-cyan-950/50">
+          <i class="fa-solid fa-right-to-bracket mr-1"></i> Masuk ke Portal
+        </button>
+
+        <div class="login-footer-hint text-center text-[10px] text-slate-500 pt-2">
+          Kredensial bawaan: <span class="text-emerald-400 font-mono">lapangan</span> / <span class="text-emerald-400 font-mono">lapangan123</span> &bull; <span class="text-cyan-400 font-mono">admin</span> / <span class="text-cyan-400 font-mono">admin123</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
+
+  <!-- Core Portal Scripts -->
+  <script src="app.js?v=2.7"></script>
+</body>
+</html>
