@@ -273,7 +273,10 @@ def process_sitac_file():
         pa_tiket = clean_text(r[3] if len(r) > 3 else "")
         terminating = clean_text(r[4] if len(r) > 4 else "")
         jenis = clean_text(r[8] if len(r) > 8 else "")
-        if no_val is None and not pa_tiket and not terminating and not jenis: continue
+        # Skip template rows that only contain sequence number in column A with no actual data
+        tgl_raw = r[1] if len(r) > 1 else None
+        if not pa_tiket and not terminating and not jenis and tgl_raw is None:
+            continue
 
         g_id = len(gangguan_records) + 1
         tgl_dispos = parse_date(r[1] if len(r) > 1 else None)

@@ -1,0 +1,128 @@
+mutation SeedData @transaction {
+  user_insertMany(data: [
+    {
+      id: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a1",
+      firstName: "Alice",
+      lastName: "Smith",
+      address: "123 Maple St",
+      email: "alice@example.com",
+      isVerified: true
+    },
+    {
+      id: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a2",
+      firstName: "Bob",
+      lastName: "Jones",
+      address: "456 Oak Ave",
+      email: "bob@example.com",
+      isVerified: false
+    },
+    {
+      id: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a3",
+      firstName: "Charlie",
+      lastName: "Brown",
+      address: "789 Pine Rd",
+      email: "charlie@example.com",
+      isVerified: true
+    }
+  ])
+
+  post_insertMany(data: [
+    {
+      id: "f47ac10b-58cc-4372-a567-0e02b2c3d4e1",
+      content: "Hello world!",
+      type: "text",
+      createdAt: "2023-10-01T10:00:00Z",
+      authorId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a1"
+    },
+    {
+      id: "f47ac10b-58cc-4372-a567-0e02b2c3d4e2",
+      content: "Check out this photo.",
+      type: "image",
+      createdAt: "2023-10-01T12:00:00Z",
+      authorId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a2"
+    },
+    {
+      id: "f47ac10b-58cc-4372-a567-0e02b2c3d4e3",
+      content: "Another post here.",
+      type: "text",
+      createdAt: "2023-10-02T09:00:00Z",
+      authorId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a3"
+    }
+  ])
+
+  comment_insertMany(data: [
+    {
+      text: "Nice post!",
+      createdAt: "2023-10-01T11:00:00Z",
+      authorId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a2",
+      postId: "f47ac10b-58cc-4372-a567-0e02b2c3d4e1"
+    },
+    {
+      text: "I agree.",
+      createdAt: "2023-10-01T13:00:00Z",
+      authorId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a3",
+      postId: "f47ac10b-58cc-4372-a567-0e02b2c3d4e2"
+    },
+    {
+      text: "Thanks!",
+      createdAt: "2023-10-01T14:00:00Z",
+      authorId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a1",
+      postId: "f47ac10b-58cc-4372-a567-0e02b2c3d4e2"
+    }
+  ])
+
+  event_insertMany(data: [
+    {
+      title: "Tech Conference",
+      description: "Annual tech meetup",
+      startTime: "2024-01-15T09:00:00Z",
+      location: "San Francisco",
+      maxAttendees: 100,
+      organizerId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a1"
+    },
+    {
+      title: "Art Gallery Opening",
+      description: "Local art showcase",
+      startTime: "2024-02-20T18:00:00Z",
+      location: "New York",
+      maxAttendees: 50,
+      organizerId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a2"
+    },
+    {
+      title: "Book Club",
+      description: "Monthly discussion",
+      startTime: "2024-03-05T17:00:00Z",
+      location: "Seattle",
+      maxAttendees: 20,
+      organizerId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a3"
+    }
+  ])
+
+  rSVP_insertMany(data: [
+    {
+      userId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a2",
+      eventId: "d9e8f7c6-b5a4-4321-9876-543210fedcba",
+      status: "confirmed"
+    },
+    {
+      userId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a3",
+      eventId: "d9e8f7c6-b5a4-4321-9876-543210fedcba",
+      status: "pending"
+    }
+  ])
+
+  message_insertMany(data: [
+    {
+      text: "Hey, are you going to the conference?",
+      timestamp: "2024-01-10T10:00:00Z",
+      senderId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a2",
+      recipientId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a1"
+    },
+    {
+      text: "Yes, I am!",
+      timestamp: "2024-01-10T10:05:00Z",
+      senderId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a1",
+      recipientId: "3e5a1b0c-7d9a-4c12-8e6f-1234567890a2"
+    }
+  ])
+}

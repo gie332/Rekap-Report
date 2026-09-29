@@ -1,0 +1,47 @@
+type User @table {
+  firstName: String!
+  lastName: String!
+  address: String!
+  email: String!
+  isVerified: Boolean!
+  phoneNumber: String
+  bio: String
+  profilePictureUrl: String
+}
+
+type Post @table {
+  content: String!
+  type: String!
+  createdAt: Timestamp!
+  imageUrl: String
+  author: User!
+}
+
+type Event @table {
+  title: String!
+  description: String!
+  startTime: Timestamp!
+  location: String!
+  maxAttendees: Int
+  organizer: User!
+}
+
+type Comment @table {
+  text: String!
+  createdAt: Timestamp!
+  author: User!
+  post: Post!
+}
+
+type RSVP @table(key: ["user", "event"]) {
+  status: String!
+  user: User!
+  event: Event!
+}
+
+type Message @table {
+  text: String!
+  timestamp: Timestamp!
+  sender: User!
+  recipient: User!
+}

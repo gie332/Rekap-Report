@@ -1,0 +1,145 @@
+mutation CreateUser($firstName: String!, $lastName: String!, $address: String!, $email: String!, $isVerified: Boolean!) @auth(level: USER) {
+  user_insert(data: {
+    id_expr: "auth.uid",
+    firstName: $firstName,
+    lastName: $lastName,
+    address: $address,
+    email: $email,
+    isVerified: $isVerified
+  })
+}
+
+mutation UpdateUser($firstName: String, $lastName: String) @auth(level: USER) {
+  user_update(key: {id_expr: "auth.uid"}, data: {firstName: $firstName, lastName: $lastName})
+}
+
+mutation DeleteUser @auth(level: USER) {
+  user_delete(key: {id_expr: "auth.uid"})
+}
+
+query GetMyUser @auth(level: USER) {
+  user(key: {id_expr: "auth.uid"}) {
+    firstName lastName email address isVerified
+  }
+}
+
+query ListAllUsers @auth(level: PUBLIC, insecureReason: "Public directory of users.") {
+  users {
+    firstName lastName
+  }
+}
+
+mutation CreatePost($content: String!, $type: String!) @auth(level: USER) {
+  post_insert(data: {
+    content: $content,
+    type: $type,
+    createdAt_expr: "request.time",
+    author: {id_expr: "auth.uid"}
+  })
+}
+
+mutation UpdatePost($id: UUID!, $content: String) @auth(level: USER) {
+  post_update(id: $id, data: {content: $content})
+}
+
+mutation DeletePost($id: UUID!) @auth(level: USER) {
+  post_delete(id: $id)
+}
+
+query GetPost($id: UUID!) @auth(level: PUBLIC, insecureReason: "Public posts.") {
+  post(id: $id) {
+    content type createdAt author { firstName }
+  }
+}
+
+query ListPosts @auth(level: PUBLIC, insecureReason: "Public feed.") {
+  posts {
+    content createdAt
+  }
+}
+
+mutation CreateEvent($title: String!, $description: String!, $startTime: Timestamp!, $location: String!) @auth(level: USER) {
+  event_insert(data: {
+    title: $title,
+    description: $description,
+    startTime: $startTime,
+    location: $location,
+    organizer: {id_expr: "auth.uid"}
+  })
+}
+
+mutation UpdateEvent($id: UUID!, $title: String) @auth(level: USER) {
+  event_update(id: $id, data: {title: $title})
+}
+
+mutation DeleteEvent($id: UUID!) @auth(level: USER) {
+  event_delete(id: $id)
+}
+
+query GetEvent($id: UUID!) @auth(level: PUBLIC, insecureReason: "Public event details.") {
+  event(id: $id) {
+    title description startTime location
+  }
+}
+
+query ListEvents @auth(level: PUBLIC, insecureReason: "Public events list.") {
+  events {
+    title startTime
+  }
+}
+
+mutation CreateComment($text: String!, $postId: UUID!) @auth(level: USER) {
+  comment_insert(data: {
+    text: $text,
+    createdAt_expr: "request.time",
+    author: {id_expr: "auth.uid"},
+    post: {id: $postId}
+  })
+}
+
+mutation DeleteComment($id: UUID!) @auth(level: USER) {
+  comment_delete(id: $id)
+}
+
+query GetCommentsForPost($postId: UUID!) @auth(level: PUBLIC, insecureReason: "Public comments.") {
+  comments(where: {postId: {eq: $postId}}) {
+    text createdAt author { firstName }
+  }
+}
+
+mutation CreateRSVP($eventId: UUID!, $status: String!) @auth(level: USER) {
+  rSVP_insert(data: {
+    status: $status,
+    user: {id_expr: "auth.uid"},
+    event: {id: $eventId}
+  })
+}
+
+mutation UpdateRSVP($eventId: UUID!, $status: String!) @auth(level: USER) {
+  rSVP_update(key: {userId_expr: "auth.uid", eventId: $eventId}, data: {status: $status})
+}
+
+mutation DeleteRSVP($eventId: UUID!) @auth(level: USER) {
+  rSVP_delete(key: {userId_expr: "auth.uid", eventId: $eventId})
+}
+
+query ListMyRSVPs @auth(level: USER) {
+  rSVPS(where: {userId: {eq_expr: "auth.uid"}}) {
+    status event { title }
+  }
+}
+
+mutation SendMessage($text: String!, $recipientId: UUID!) @auth(level: USER) {
+  message_insert(data: {
+    text: $text,
+    timestamp_expr: "request.time",
+    sender: {id_expr: "auth.uid"},
+    recipient: {id: $recipientId}
+  })
+}
+
+query GetMessages @auth(level: USER) {
+  messages(where: {recipientId: {eq_expr: "auth.uid"}}) {
+    text timestamp sender { firstName }
+  }
+}

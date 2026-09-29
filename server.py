@@ -49,18 +49,32 @@ def init_users_table():
             role TEXT NOT NULL,
             avatar_icon TEXT DEFAULT 'fa-user',
             badge_color TEXT DEFAULT 'cyan',
+            pic_code TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    cursor.execute("SELECT COUNT(*) FROM users")
-    count = cursor.fetchone()[0]
-    if count == 0:
-        default_users = [
-            ('admin', hash_pw('admin123'), 'Administrator (Manajemen)', 'admin', 'fa-shield-halved', 'cyan'),
-            ('lapangan', hash_pw('lapangan123'), 'Tim SITAC & Teknisi Lapangan', 'lapangan', 'fa-helmet-safety', 'emerald'),
-        ]
-        cursor.executemany("INSERT INTO users (username, password_hash, full_name, role, avatar_icon, badge_color) VALUES (?, ?, ?, ?, ?, ?)", default_users)
+    cursor.execute("PRAGMA table_info(users)")
+    cols = [r[1] for r in cursor.fetchall()]
+    if 'pic_code' not in cols:
+        cursor.execute("ALTER TABLE users ADD COLUMN pic_code TEXT DEFAULT ''")
         conn.commit()
+
+    default_users = [
+        ('admin', hash_pw('admin123'), 'Administrator (Manajemen)', 'admin', 'fa-shield-halved', 'cyan', ''),
+        ('lapangan', hash_pw('lapangan123'), 'Tim SITAC & Lapangan (Umum)', 'lapangan', 'fa-helmet-safety', 'emerald', 'Harlan'),
+        ('harlan', hash_pw('pic123'), 'Harlan', 'lapangan', 'fa-helmet-safety', 'emerald', 'Harlan'),
+        ('budi', hash_pw('pic123'), 'Budi Rodiyah', 'lapangan', 'fa-helmet-safety', 'cyan', 'Budi'),
+        ('edi', hash_pw('pic123'), 'Edi Swargaloka', 'lapangan', 'fa-helmet-safety', 'amber', 'Edi'),
+        ('abusopian', hash_pw('pic123'), 'M. Abusopian', 'lapangan', 'fa-helmet-safety', 'indigo', 'Abusopian'),
+        ('muhidin', hash_pw('pic123'), 'Muhidin', 'lapangan', 'fa-helmet-safety', 'teal', 'Muhidin'),
+        ('brian', hash_pw('pic123'), 'Brian Ariyanto', 'lapangan', 'fa-helmet-safety', 'purple', 'Brian'),
+        ('zulhadi', hash_pw('pic123'), 'Zulhadi Syahril', 'lapangan', 'fa-helmet-safety', 'blue', 'Zulhadi'),
+    ]
+    for u in default_users:
+        cursor.execute("SELECT id FROM users WHERE username = ?", (u[0],))
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO users (username, password_hash, full_name, role, avatar_icon, badge_color, pic_code) VALUES (?, ?, ?, ?, ?, ?, ?)", u)
+    conn.commit()
     conn.close()
 
 def safe_int(v, default=0):
@@ -154,6 +168,14 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
                     self.handle_get_map_coordinates(query)
                 elif path == "/api/meta/options":
                     self.handle_get_filter_options()
+                elif path == "/api/download/pdf-report":
+                    self.handle_download_pdf_report()
+                elif path == "/api/download/excel-report":
+                    self.handle_download_excel_report(query)
+                elif path == "/api/auth/registered-pics":
+                    self.handle_get_registered_pics()
+                elif path == "/api/database/overview":
+                    self.handle_get_database_overview()
                 else:
                     self.send_error_json(f"Endpoint {path} not found", 404)
             except Exception as e:
@@ -183,6 +205,25 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_error_json(f"Patch Error: {str(e)}", 500)
 
+    def do_DELETE(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+
+        try:
+            if path.startswith("/api/collo/"):
+                rec_id = int(path.split("/")[-1])
+                self.handle_delete_collo(rec_id)
+            elif path.startswith("/api/sitac/"):
+                rec_id = int(path.split("/")[-1])
+                self.handle_delete_sitac(rec_id)
+            elif path.startswith("/api/gangguan/"):
+                rec_id = int(path.split("/")[-1])
+                self.handle_delete_gangguan(rec_id)
+            else:
+                self.send_error_json(f"Cannot DELETE {path}", 404)
+        except Exception as e:
+            self.send_error_json(f"Delete Error: {str(e)}", 500)
+
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
@@ -191,12 +232,31 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         try:
             if path == "/api/auth/login":
                 self.handle_auth_login(body)
+            elif path == "/api/auth/register":
+                self.handle_auth_register(body)
+            elif path == "/api/auth/change-password":
+                self.handle_auth_change_password(body)
+            elif path == "/api/auth/admin-reset-password":
+                self.handle_admin_reset_password(body)
+            elif path == "/api/auth/delete-user":
+                self.handle_delete_user(body)
             elif path == "/api/collo":
                 self.handle_post_collo(body)
+            elif path.startswith("/api/collo/") and path.endswith("/delete"):
+                rec_id = int(path.split("/")[-2])
+                self.handle_delete_collo(rec_id)
             elif path == "/api/sitac":
                 self.handle_post_sitac(body)
+            elif path.startswith("/api/sitac/") and path.endswith("/delete"):
+                rec_id = int(path.split("/")[-2])
+                self.handle_delete_sitac(rec_id)
             elif path == "/api/gangguan":
                 self.handle_post_gangguan(body)
+            elif path.startswith("/api/gangguan/") and path.endswith("/delete"):
+                rec_id = int(path.split("/")[-2])
+                self.handle_delete_gangguan(rec_id)
+            elif path == "/api/upload":
+                self.handle_upload_file(body)
             else:
                 self.send_error_json(f"Cannot POST {path}", 404)
         except Exception as e:
@@ -211,19 +271,38 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         password = str(body.get('password', '')).strip()
 
         if not username or not password:
-            self.send_error_json("Username dan password harus diisi", 400)
+            self.send_error_json("Username dan password harus diisi untuk keamanan akses", 400)
             return
 
         pw_hash = hash_pw(password)
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, username, full_name, role, avatar_icon, badge_color, password_hash FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id, username, full_name, role, avatar_icon, badge_color, password_hash, pic_code FROM users WHERE username = ?", (username,))
         row = cursor.fetchone()
-        conn.close()
 
-        if not row or row['password_hash'] != pw_hash:
-            self.send_error_json("Username atau password tidak sesuai. Coba 'lapangan' / 'lapangan123' atau 'admin' / 'admin123'.", 401)
+        if not row:
+            conn.close()
+            self.send_error_json("Akun tidak ditemukan. Silakan daftarkan akun PIC Anda terlebih dahulu.", 401)
             return
+
+        # Secure verification: password hash MUST match
+        if row['password_hash'] != pw_hash:
+            conn.close()
+            self.send_error_json("Password yang Anda masukkan salah. Pastikan sandi akun Anda benar.", 401)
+            return
+
+        is_lapangan = row['role'] == 'lapangan'
+        pic_code = row['pic_code'] if row['pic_code'] else (row['full_name'].split()[0] if is_lapangan else '')
+        
+        # Calculate task counts for this PIC
+        sitac_count = 0
+        gangguan_count = 0
+        if pic_code:
+            cursor.execute("SELECT COUNT(*) FROM sitac_records WHERE LOWER(pic_perijinan) LIKE ?", (f"%{pic_code.lower()}%",))
+            sitac_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM gangguan_records WHERE LOWER(pic_perijinan) LIKE ?", (f"%{pic_code.lower()}%",))
+            gangguan_count = cursor.fetchone()[0]
+        conn.close()
 
         user_info = {
             "id": row['id'],
@@ -231,7 +310,10 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
             "full_name": row['full_name'],
             "role": row['role'],
             "avatar_icon": row['avatar_icon'],
-            "badge_color": row['badge_color']
+            "badge_color": row['badge_color'],
+            "pic_code": pic_code,
+            "sitac_count": sitac_count,
+            "gangguan_count": gangguan_count
         }
         token = f"sess_{row['role']}_{hashlib.md5((username + str(datetime.datetime.now())).encode()).hexdigest()[:16]}"
         self.send_json({
@@ -239,6 +321,264 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
             "message": f"Login berhasil sebagai {row['full_name']}",
             "user": user_info,
             "token": token
+        })
+
+    def handle_get_registered_pics(self):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, username, full_name, role, avatar_icon, badge_color, pic_code, created_at 
+            FROM users 
+            WHERE role = 'lapangan' AND username != 'lapangan'
+            ORDER BY full_name ASC
+        """)
+        pics = []
+        for r in cursor.fetchall():
+            p_dict = dict(r)
+            pic_code = p_dict['pic_code'] or p_dict['full_name'].split()[0]
+            cursor.execute("SELECT COUNT(*) FROM sitac_records WHERE LOWER(pic_perijinan) LIKE ?", (f"%{pic_code.lower()}%",))
+            p_dict['sitac_count'] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM gangguan_records WHERE LOWER(pic_perijinan) LIKE ?", (f"%{pic_code.lower()}%",))
+            p_dict['gangguan_count'] = cursor.fetchone()[0]
+            pics.append(p_dict)
+        conn.close()
+        self.send_json({"success": True, "pics": pics})
+
+    def handle_auth_register(self, body):
+        username = str(body.get('username', '')).strip().lower()
+        password = str(body.get('password', '')).strip()
+        full_name = str(body.get('full_name', '')).strip()
+        pic_code = str(body.get('pic_code', '')).strip()
+        role = str(body.get('role', 'lapangan')).strip().lower()
+
+        if not username or len(username) < 3:
+            self.send_error_json("Username harus diisi (minimal 3 karakter, huruf/angka tanpa spasi)", 400)
+            return
+        if not password or len(password) < 4:
+            self.send_error_json("Password harus diisi (minimal 4 karakter)", 400)
+            return
+        if not full_name:
+            self.send_error_json("Nama lengkap petugas PIC harus diisi", 400)
+            return
+
+        if not pic_code:
+            pic_code = full_name.split()[0]
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        if cursor.fetchone():
+            conn.close()
+            self.send_error_json(f"Username '{username}' sudah terdaftar. Silakan gunakan username lain atau login.", 400)
+            return
+
+        pw_hash = hash_pw(password)
+        cursor.execute("""
+            INSERT INTO users (username, password_hash, full_name, role, avatar_icon, badge_color, pic_code)
+            VALUES (?, ?, ?, ?, 'fa-helmet-safety', 'emerald', ?)
+        """, (username, pw_hash, full_name, role, pic_code))
+        new_id = cursor.lastrowid
+        conn.commit()
+
+        cursor.execute("SELECT COUNT(*) FROM sitac_records WHERE LOWER(pic_perijinan) LIKE ?", (f"%{pic_code.lower()}%",))
+        sitac_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM gangguan_records WHERE LOWER(pic_perijinan) LIKE ?", (f"%{pic_code.lower()}%",))
+        gangguan_count = cursor.fetchone()[0]
+        conn.close()
+
+        user_info = {
+            "id": new_id,
+            "username": username,
+            "full_name": full_name,
+            "role": role,
+            "avatar_icon": "fa-helmet-safety",
+            "badge_color": "emerald",
+            "pic_code": pic_code,
+            "sitac_count": sitac_count,
+            "gangguan_count": gangguan_count
+        }
+        token = f"sess_{role}_{hashlib.md5((username + str(datetime.datetime.now())).encode()).hexdigest()[:16]}"
+        self.send_json({
+            "success": True,
+            "message": f"Akun PIC '{full_name}' berhasil didaftarkan ke database! Silakan login dengan password yang telah dibuat.",
+            "user": user_info,
+            "token": token
+        })
+
+    def handle_auth_change_password(self, body):
+        username = str(body.get('username', '')).strip().lower()
+        old_password = str(body.get('old_password', '')).strip()
+        new_password = str(body.get('new_password', '')).strip()
+
+        if not username or not old_password or not new_password:
+            self.send_error_json("Username, password lama, dan password baru harus diisi", 400)
+            return
+        if len(new_password) < 4:
+            self.send_error_json("Password baru minimal 4 karakter", 400)
+            return
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, password_hash, full_name FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            self.send_error_json("Akun tidak ditemukan di database", 404)
+            return
+
+        if row['password_hash'] != hash_pw(old_password):
+            conn.close()
+            self.send_error_json("Password lama yang Anda masukkan salah", 400)
+            return
+
+        cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_pw(new_password), username))
+        conn.commit()
+        conn.close()
+
+        self.send_json({
+            "success": True,
+            "message": f"Password untuk akun '{row['full_name']}' berhasil diperbarui di database!"
+        })
+
+    def handle_admin_reset_password(self, body):
+        """Admin: reset password user lain tanpa perlu password lama.
+        Hanya bisa dipanggil jika requester adalah admin."""
+        admin_username = str(body.get('admin_username', '')).strip().lower()
+        admin_password = str(body.get('admin_password', '')).strip()
+        target_username = str(body.get('target_username', '')).strip().lower()
+        new_password = str(body.get('new_password', '')).strip()
+
+        if not admin_username or not admin_password or not target_username or not new_password:
+            self.send_error_json("Semua field wajib diisi (admin_username, admin_password, target_username, new_password)", 400)
+            return
+        if len(new_password) < 4:
+            self.send_error_json("Password baru minimal 4 karakter", 400)
+            return
+
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Verify admin credentials and role
+        cursor.execute("SELECT id, password_hash, role, full_name FROM users WHERE username = ?", (admin_username,))
+        admin_row = cursor.fetchone()
+        if not admin_row or admin_row['role'] != 'admin':
+            conn.close()
+            self.send_error_json("Akses ditolak: hanya admin yang dapat mereset password user lain", 403)
+            return
+        if admin_row['password_hash'] != hash_pw(admin_password):
+            conn.close()
+            self.send_error_json("Password admin salah", 401)
+            return
+
+        # Reset target user's password
+        cursor.execute("SELECT id, full_name FROM users WHERE username = ?", (target_username,))
+        target_row = cursor.fetchone()
+        if not target_row:
+            conn.close()
+            self.send_error_json(f"User '{target_username}' tidak ditemukan di database", 404)
+            return
+
+        cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_pw(new_password), target_username))
+        conn.commit()
+        conn.close()
+
+        self.send_json({
+            "success": True,
+            "message": f"Password untuk akun '{target_row['full_name']}' (@{target_username}) berhasil direset oleh admin!"
+        })
+
+    def handle_delete_user(self, body):
+        """Admin: hapus akun user dari database."""
+        admin_username = str(body.get('admin_username', '')).strip().lower()
+        admin_password = str(body.get('admin_password', '')).strip()
+        target_username = str(body.get('target_username', '')).strip().lower()
+
+        if not admin_username or not admin_password or not target_username:
+            self.send_error_json("Semua field wajib diisi", 400)
+            return
+
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT id, password_hash, role FROM users WHERE username = ?", (admin_username,))
+        admin_row = cursor.fetchone()
+        if not admin_row or admin_row['role'] != 'admin':
+            conn.close()
+            self.send_error_json("Akses ditolak: hanya admin yang dapat menghapus akun", 403)
+            return
+        if admin_row['password_hash'] != hash_pw(admin_password):
+            conn.close()
+            self.send_error_json("Password admin salah", 401)
+            return
+        if target_username == admin_username:
+            conn.close()
+            self.send_error_json("Admin tidak dapat menghapus akun sendiri", 400)
+            return
+
+        cursor.execute("SELECT id, full_name FROM users WHERE username = ?", (target_username,))
+        target_row = cursor.fetchone()
+        if not target_row:
+            conn.close()
+            self.send_error_json(f"User '{target_username}' tidak ditemukan", 404)
+            return
+
+        cursor.execute("DELETE FROM users WHERE username = ?", (target_username,))
+        conn.commit()
+        conn.close()
+
+        self.send_json({
+            "success": True,
+            "message": f"Akun '{target_row['full_name']}' (@{target_username}) berhasil dihapus dari database!"
+        })
+
+    def handle_get_database_overview(self):
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, username, full_name, role, pic_code, created_at 
+            FROM users 
+            ORDER BY id ASC
+        """)
+        users = []
+        for r in cursor.fetchall():
+            u_dict = dict(r)
+            pic_code = u_dict['pic_code'] or u_dict['full_name'].split()[0]
+            cursor.execute("SELECT COUNT(*) FROM sitac_records WHERE LOWER(pic_perijinan) LIKE ?", (f"%{pic_code.lower()}%",))
+            u_dict['sitac_count'] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM gangguan_records WHERE LOWER(pic_perijinan) LIKE ?", (f"%{pic_code.lower()}%",))
+            u_dict['gangguan_count'] = cursor.fetchone()[0]
+            users.append(u_dict)
+
+        cursor.execute("SELECT COUNT(*) FROM sitac_records")
+        sitac_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM gangguan_records")
+        gangguan_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM collo_records")
+        collo_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM users")
+        user_count = cursor.fetchone()[0]
+
+        db_size_mb = 0
+        if os.path.exists(DB_PATH):
+            db_size_mb = round(os.path.getsize(DB_PATH) / (1024 * 1024), 2)
+
+        conn.close()
+
+        self.send_json({
+            "success": True,
+            "database_info": {
+                "file": "telecom_portal.db",
+                "size_mb": db_size_mb,
+                "status": "Connected & Active"
+            },
+            "tables": [
+                {"name": "users", "label": "Pengguna / PIC Accounts", "count": user_count, "description": "Tabel Akun & Hak Akses User"},
+                {"name": "sitac_records", "label": "Monitoring SITAC & Perizinan", "count": sitac_count, "description": "Tabel Berkas SITAC & Dokumen PA"},
+                {"name": "gangguan_records", "label": "Tiket Gangguan Darurat", "count": gangguan_count, "description": "Tabel Penanganan Gangguan FO"},
+                {"name": "collo_records", "label": "Aset Colocation & Finansial", "count": collo_count, "description": "Tabel Sewa Link & Revenue Sharing"}
+            ],
+            "users": users
         })
 
     def handle_executive_summary(self):
@@ -409,7 +749,7 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         search = q.get('search', [''])[0].strip().lower()
         sort = q.get('sort', ['margin_desc'])[0]
         page = max(1, int(q.get('page', ['1'])[0]))
-        page_size = max(5, min(100, int(q.get('pageSize', ['25'])[0])))
+        page_size = max(5, min(5000, int(q.get('pageSize', ['25'])[0])))
 
         conditions = []
         params = []
@@ -593,7 +933,7 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         aging_filter = q.get('aging', ['ALL'])[0]
         search = q.get('search', [''])[0].strip().lower()
         page = max(1, int(q.get('page', ['1'])[0]))
-        page_size = max(5, min(100, int(q.get('pageSize', ['25'])[0])))
+        page_size = max(5, min(5000, int(q.get('pageSize', ['25'])[0])))
 
         conditions = []
         params = []
@@ -603,8 +943,8 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
             params.append(status_filter)
 
         if pic_filter != 'ALL':
-            conditions.append("pic_perijinan = ?")
-            params.append(pic_filter)
+            conditions.append("(LOWER(pic_perijinan) = ? OR LOWER(pic_perijinan) LIKE ?)")
+            params.extend([pic_filter.lower(), f"%{pic_filter.lower()}%"])
 
         if year_filter != 'ALL':
             conditions.append("tahun = ?")
@@ -633,6 +973,44 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         """, params + [page_size, offset])
 
         records = [dict(r) for r in cursor.fetchall()]
+
+        # Base conditions excluding status_filter to calculate breakdown for tabs & chart
+        other_conditions = []
+        other_params = []
+        if pic_filter != 'ALL':
+            other_conditions.append("(LOWER(pic_perijinan) = ? OR LOWER(pic_perijinan) LIKE ?)")
+            other_params.extend([pic_filter.lower(), f"%{pic_filter.lower()}%"])
+        if year_filter != 'ALL':
+            other_conditions.append("tahun = ?")
+            other_params.append(int(year_filter))
+        if aging_filter != 'ALL':
+            other_conditions.append("aging_category = ?")
+            other_params.append(aging_filter.lower())
+        if search:
+            search_param = f"%{search}%"
+            other_conditions.append("(LOWER(no_pa) LIKE ? OR LOWER(pelanggan) LIKE ? OR LOWER(terminating) LIKE ? OR LOWER(pic_perijinan) LIKE ?)")
+            other_params.extend([search_param, search_param, search_param, search_param])
+
+        other_where = " WHERE " + " AND ".join(other_conditions) if other_conditions else ""
+        cursor.execute(f"SELECT progress, COUNT(*) FROM sitac_records {other_where} GROUP BY progress", other_params)
+        raw_status = dict(cursor.fetchall())
+        status_counts = {
+            "Finish": raw_status.get("Finish", 0),
+            "Ongoing": raw_status.get("Ongoing", 0),
+            "Hold": raw_status.get("Hold", 0),
+            "Cancel": raw_status.get("Cancel", 0)
+        }
+        status_counts["ALL"] = sum(status_counts.values())
+
+        # Aging distribution for the currently filtered result (including status_filter)
+        cursor.execute(f"SELECT aging_category, COUNT(*) FROM sitac_records {where_clause} GROUP BY aging_category", params)
+        raw_aging = dict(cursor.fetchall())
+        aging_dist = {
+            "green": raw_aging.get("green", 0),
+            "yellow": raw_aging.get("yellow", 0),
+            "red": raw_aging.get("red", 0)
+        }
+
         conn.close()
 
         self.send_json({
@@ -640,7 +1018,9 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
             "total": total_count,
             "page": page,
             "pageSize": page_size,
-            "totalPages": (total_count + page_size - 1) // page_size if total_count > 0 else 1
+            "totalPages": (total_count + page_size - 1) // page_size if total_count > 0 else 1,
+            "status_counts": status_counts,
+            "aging_dist": aging_dist
         })
 
     def handle_get_gangguan(self, q):
@@ -649,6 +1029,18 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
 
         is_selesai = q.get('status', ['ALL'])[0]
         search = q.get('search', [''])[0].strip().lower()
+        pic = q.get('pic', ['ALL'])[0].strip()
+        exact_date = q.get('date', [''])[0].strip()
+        start_date = q.get('start_date', [''])[0].strip()
+        end_date = q.get('end_date', [''])[0].strip()
+        date_type = q.get('date_type', ['dispos'])[0].strip().lower()
+
+        # Date column determination
+        if date_type == 'selesai':
+            date_col = "tgl_selesai"
+        else:
+            # Fallback to SUBSTR(created_at, 1, 10) if tgl_dispos is empty
+            date_col = "COALESCE(NULLIF(tgl_dispos, ''), SUBSTR(created_at, 1, 10))"
 
         conditions = []
         params = []
@@ -658,22 +1050,82 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         elif is_selesai == '0':
             conditions.append("is_selesai = 0")
 
+        if pic and pic != 'ALL':
+            conditions.append("LOWER(pic_perijinan) LIKE ?")
+            params.append(f"%{pic.lower()}%")
+
         if search:
             search_param = f"%{search}%"
-            conditions.append("(LOWER(no_tiket) LIKE ? OR LOWER(terminating) LIKE ? OR LOWER(pic_perijinan) LIKE ? OR LOWER(jenis_gangguan) LIKE ?)")
-            params.extend([search_param, search_param, search_param, search_param])
+            conditions.append("(LOWER(no_tiket) LIKE ? OR LOWER(terminating) LIKE ? OR LOWER(pic_perijinan) LIKE ? OR LOWER(jenis_gangguan) LIKE ? OR LOWER(COALESCE(update_gangguan, '')) LIKE ?)")
+            params.extend([search_param, search_param, search_param, search_param, search_param])
+
+        if exact_date:
+            conditions.append(f"{date_col} = ?")
+            params.append(exact_date)
+        else:
+            if start_date:
+                conditions.append(f"{date_col} >= ?")
+                params.append(start_date)
+            if end_date:
+                conditions.append(f"{date_col} <= ?")
+                params.append(end_date)
 
         where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
 
         cursor.execute(f"""
             SELECT * FROM gangguan_records
             {where_clause}
-            ORDER BY id ASC
+            ORDER BY COALESCE(NULLIF(tgl_dispos, ''), SUBSTR(created_at, 1, 10)) DESC, id DESC
         """, params)
         records = [dict(r) for r in cursor.fetchall()]
+
+        # Tab badge counts calculation (respects date and search filters, but ignores is_selesai)
+        date_conditions = []
+        date_params = []
+        if pic and pic != 'ALL':
+            date_conditions.append("LOWER(pic_perijinan) LIKE ?")
+            date_params.append(f"%{pic.lower()}%")
+        if search:
+            search_param = f"%{search}%"
+            date_conditions.append("(LOWER(no_tiket) LIKE ? OR LOWER(terminating) LIKE ? OR LOWER(pic_perijinan) LIKE ? OR LOWER(jenis_gangguan) LIKE ? OR LOWER(COALESCE(update_gangguan, '')) LIKE ?)")
+            date_params.extend([search_param, search_param, search_param, search_param, search_param])
+        if exact_date:
+            date_conditions.append(f"{date_col} = ?")
+            date_params.append(exact_date)
+        else:
+            if start_date:
+                date_conditions.append(f"{date_col} >= ?")
+                date_params.append(start_date)
+            if end_date:
+                date_conditions.append(f"{date_col} <= ?")
+                date_params.append(end_date)
+
+        date_where = " WHERE " + " AND ".join(date_conditions) if date_conditions else ""
+        cursor.execute(f"""
+            SELECT 
+                COUNT(*) as all_cnt,
+                SUM(CASE WHEN is_selesai = 1 THEN 1 ELSE 0 END) as selesai_cnt,
+                SUM(CASE WHEN is_selesai = 0 THEN 1 ELSE 0 END) as open_cnt
+            FROM gangguan_records
+            {date_where}
+        """, date_params)
+        counts_row = cursor.fetchone()
+        tab_counts = {
+            "all": counts_row['all_cnt'] if counts_row and counts_row['all_cnt'] is not None else 0,
+            "selesai": counts_row['selesai_cnt'] if counts_row and counts_row['selesai_cnt'] is not None else 0,
+            "open": counts_row['open_cnt'] if counts_row and counts_row['open_cnt'] is not None else 0
+        }
+
+        total_biaya = sum((r.get('biaya_gangguan') or 0) for r in records)
+
         conn.close()
 
-        self.send_json({"data": records, "total": len(records)})
+        self.send_json({
+            "data": records, 
+            "total": len(records),
+            "total_biaya": total_biaya,
+            "counts": tab_counts
+        })
 
     def handle_get_pic_performance(self):
         conn = get_db()
@@ -744,6 +1196,187 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         conn.close()
         self.send_json(rows)
 
+    def handle_download_pdf_report(self):
+        pdf_path = os.path.join(BASE_DIR, "Laporan_Rekap_Telecom_Ops.pdf")
+        try:
+            import generate_pdf_report
+            generate_pdf_report.build_pdf_report()
+        except Exception as e:
+            print(f"Error rebuilding PDF: {e}")
+
+        if not os.path.exists(pdf_path):
+            self.send_error_json("File PDF belum tersedia.", 404)
+            return
+
+        try:
+            with open(pdf_path, 'rb') as f:
+                pdf_data = f.read()
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/pdf')
+            self.send_header('Content-Disposition', 'attachment; filename="Laporan_Rekap_Telecom_Ops.pdf"')
+            self.send_header('Content-Length', str(len(pdf_data)))
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(pdf_data)
+        except Exception as e:
+            self.send_error_json(f"Gagal mengirim file PDF: {str(e)}", 500)
+
+    def handle_download_excel_report(self, q):
+        import openpyxl
+        import io
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        module = q.get('module', ['gangguan'])[0].lower()
+        conn = get_db()
+        cursor = conn.cursor()
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+
+        header_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+        header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+        title_font = Font(name="Arial", size=13, bold=True, color="0F172A")
+        sub_font = Font(name="Arial", size=9, italic=True, color="64748B")
+        data_font = Font(name="Arial", size=9)
+        thin_border = Border(
+            left=Side(style='thin', color='CBD5E1'),
+            right=Side(style='thin', color='CBD5E1'),
+            top=Side(style='thin', color='CBD5E1'),
+            bottom=Side(style='thin', color='CBD5E1')
+        )
+
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+
+        if module == 'sitac':
+            filename = f"Rekap_Proyek_SITAC_{today_str}.xlsx"
+            ws.title = "Proyek SITAC"
+
+            ws["A1"] = "REKAPITULASI PENUGASAN PERIZINAN SITAC (PA)"
+            ws["A1"].font = title_font
+            ws["A2"] = f"Diekspor pada: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Telecom Operations Portal"
+            ws["A2"].font = sub_font
+
+            headers = [
+                "No", "Nomor PA", "Pelanggan", "PTL", "PIC SITAC", "Alamat / Terminating",
+                "Biaya Pengajuan (Rp)", "Biaya Realisasi (Rp)", "Efisiensi (Rp)", "Efisiensi (%)",
+                "Status Progress", "Durasi (Hari)", "Aging SLA", "Tgl Disposisi", "Tgl Selesai", "Catatan Lapangan"
+            ]
+            ws.append([])
+            ws.append(headers)
+
+            cursor.execute("SELECT * FROM sitac_records ORDER BY id ASC")
+            rows = cursor.fetchall()
+            for idx, r in enumerate(rows, start=1):
+                ws.append([
+                    idx, r['no_pa'] or '-', r['pelanggan'] or '-', r['ptl'] or '-', r['pic_perijinan'] or '-',
+                    r['terminating'] or '-', r['biaya_permintaan_awal'] or 0, r['biaya_final'] or 0,
+                    r['efisiensi_rupiah'] or 0, r['efisiensi_persen'] or 0.0, r['progress'] or '-',
+                    r['durasi_hari'] if r['durasi_hari'] is not None else '-', r['aging_category'] or '-',
+                    r['date_dispos'] or '-', r['date_close'] or '-', r['update_pekerjaan'] or '-'
+                ])
+
+        elif module == 'collo':
+            filename = f"Rekap_Kontrak_Colocation_{today_str}.xlsx"
+            ws.title = "Colocation"
+
+            ws["A1"] = "REKAPITULASI KONTRAK SEWA COLOCATION & INTERKONEKSI"
+            ws["A1"].font = title_font
+            ws["A2"] = f"Diekspor pada: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Telecom Operations Portal"
+            ws["A2"].font = sub_font
+
+            headers = [
+                "No", "Pengelola", "Pelanggan", "Nomor SO", "SID Sirkuit", "Jenis Sewa", "Layanan",
+                "Originating", "Terminating", "Rev Sewa 1 Thn (Rp)", "Biaya OTC (Rp)", "Biaya Sewa 1 Thn (Rp)",
+                "Margin (Rp)", "Margin (%)", "Rev Sharing", "Status", "Tgl Mulai", "Tgl Berakhir",
+                "Sisa Hari", "Kategori Alert", "Nomor SPP / PO", "PIC Rekanan", "Catatan"
+            ]
+            ws.append([])
+            ws.append(headers)
+
+            cursor.execute("SELECT * FROM collo_records ORDER BY id ASC")
+            rows = cursor.fetchall()
+            for idx, r in enumerate(rows, start=1):
+                ws.append([
+                    idx, r['pengelola'] or '-', r['pelanggan'] or '-', r['no_so'] or '-', r['sid'] or '-',
+                    r['jenis_sewa'] or '-', r['layanan'] or '-', r['originating'] or '-', r['terminating'] or '-',
+                    r['rev_sewa_tahun'] or 0, r['biaya_otc'] or 0, r['biaya_sewa_tahun'] or 0,
+                    r['margin_rupiah'] or 0, r['margin_persen'] or 0.0, r['rev_sharing_raw'] or '-',
+                    r['status'] or '-', r['start_date'] or '-', r['end_date'] or '-',
+                    r['sisa_hari'] if r['sisa_hari'] is not None else 0, r['alert_category'] or '-',
+                    r['spp'] or r['po_baru'] or '-', r['pic_rekanan'] or '-', r['keterangan'] or '-'
+                ])
+
+        else: # gangguan
+            filename = f"Rekap_Tiket_Gangguan_{today_str}.xlsx"
+            ws.title = "Tiket Gangguan"
+
+            ws["A1"] = "REKAPITULASI TIKET GANGGUAN DARURAT & MAINTENANCE FO"
+            ws["A1"].font = title_font
+            ws["A2"] = f"Diekspor pada: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Telecom Operations Portal"
+            ws["A2"].font = sub_font
+
+            headers = [
+                "No", "Nomor Tiket", "Tgl Disposisi", "Tgl Selesai", "Lokasi Gangguan / Terminating",
+                "Jenis Insiden", "Target SLA", "PIC Lapangan / Perizinan", "Biaya Penanganan (Rp)",
+                "Status Pekerjaan", "Catatan Update Gangguan", "Foto Bukti"
+            ]
+            ws.append([])
+            ws.append(headers)
+
+            cursor.execute("SELECT * FROM gangguan_records ORDER BY COALESCE(NULLIF(tgl_dispos, ''), SUBSTR(created_at, 1, 10)) DESC, id DESC")
+            rows = cursor.fetchall()
+            for idx, r in enumerate(rows, start=1):
+                st_text = "Selesai" if r['is_selesai'] == 1 else "Proses (Open)"
+                ws.append([
+                    idx, r['no_tiket'] or '-', r['tgl_dispos'] or '-', r['tgl_selesai'] or '-',
+                    r['terminating'] or '-', r['jenis_gangguan'] or '-', r['sla_target'] or 'H+1',
+                    r['pic_perijinan'] or '-', r['biaya_gangguan'] or 0, st_text,
+                    r['update_gangguan'] or '-', r['foto_bukti'] or '-'
+                ])
+
+        conn.close()
+
+        # Format header row (row 4)
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=4, column=col_idx)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        # Format data rows & column widths
+        for row in ws.iter_rows(min_row=5, max_row=ws.max_row, min_col=1, max_col=len(headers)):
+            for cell in row:
+                cell.font = data_font
+                cell.border = thin_border
+                if isinstance(cell.value, (int, float)) and cell.column not in [1]:
+                    if cell.value >= 1000 or 'Rp' in headers[cell.column - 1]:
+                        cell.number_format = '#,##0'
+
+        for col in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(col[0].column)
+            for cell in col:
+                if cell.row in [1, 2]: continue
+                val_str = str(cell.value or '')
+                if len(val_str) > max_len:
+                    max_len = len(val_str)
+            ws.column_dimensions[col_letter].width = min(max(max_len + 3, 10), 40)
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        excel_bytes = output.getvalue()
+
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+        self.send_header('Content-Length', str(len(excel_bytes)))
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(excel_bytes)
+
     def handle_get_map_coordinates(self, q):
         conn = get_db()
         cursor = conn.cursor()
@@ -798,7 +1431,7 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         fields = []
         params = []
 
-        allowed_fields = ['status', 'spp', 'po_baru', 'ref_spp', 'proses_admin', 'keterangan', 'rev_sewa_tahun', 'biaya_otc', 'biaya_sewa_tahun']
+        allowed_fields = ['status', 'spp', 'po_baru', 'ref_spp', 'proses_admin', 'keterangan', 'rev_sewa_tahun', 'biaya_otc', 'biaya_sewa_tahun', 'foto_bukti']
         for f in allowed_fields:
             if f in body:
                 val = body[f]
@@ -850,7 +1483,7 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         fields = []
         params = []
 
-        allowed = ['progress', 'biaya_final', 'update_pekerjaan', 'date_close']
+        allowed = ['progress', 'biaya_final', 'update_pekerjaan', 'date_close', 'foto_bukti']
         for f in allowed:
             if f in body:
                 fields.append(f"{f} = ?")
@@ -916,7 +1549,7 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         fields = []
         params = []
 
-        allowed = ['is_selesai', 'status_pekerjaan', 'tgl_selesai', 'update_gangguan']
+        allowed = ['is_selesai', 'status_pekerjaan', 'tgl_selesai', 'update_gangguan', 'biaya_gangguan', 'foto_bukti']
         for f in allowed:
             if f in body:
                 fields.append(f"{f} = ?")
@@ -950,6 +1583,48 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
             return self.send_error_json("Record not found", 404)
 
         self.send_json({"success": True, "message": f"Tiket Gangguan #{rec_id} berhasil diperbarui", "record": dict(row)})
+
+    def handle_delete_collo(self, rec_id):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, no_so, pelanggan FROM collo_records WHERE id = ?", (rec_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return self.send_error_json(f"Data Colocation dengan ID #{rec_id} tidak ditemukan", 404)
+
+        cursor.execute("DELETE FROM collo_records WHERE id = ?", (rec_id,))
+        conn.commit()
+        conn.close()
+        self.send_json({"success": True, "message": f"Data Colocation ID #{rec_id} ({row['pelanggan'] or '-'}) berhasil dihapus!"})
+
+    def handle_delete_sitac(self, rec_id):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, no_pa, pelanggan FROM sitac_records WHERE id = ?", (rec_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return self.send_error_json(f"Data SITAC dengan ID #{rec_id} tidak ditemukan", 404)
+
+        cursor.execute("DELETE FROM sitac_records WHERE id = ?", (rec_id,))
+        conn.commit()
+        conn.close()
+        self.send_json({"success": True, "message": f"Penugasan SITAC ID #{rec_id} ({row['no_pa'] or '-'}) berhasil dihapus!"})
+
+    def handle_delete_gangguan(self, rec_id):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, no_tiket FROM gangguan_records WHERE id = ?", (rec_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return self.send_error_json(f"Data Gangguan dengan ID #{rec_id} tidak ditemukan", 404)
+
+        cursor.execute("DELETE FROM gangguan_records WHERE id = ?", (rec_id,))
+        conn.commit()
+        conn.close()
+        self.send_json({"success": True, "message": f"Tiket Gangguan ID #{rec_id} ({row['no_tiket'] or '-'}) berhasil dihapus!"})
 
     def handle_post_collo(self, b):
         conn = get_db()
@@ -1062,19 +1737,20 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         lon = safe_float(b.get('longitude', 106.8200), 106.8200)
 
         now = datetime.date.today()
+        foto_bukti = str(b.get('foto_bukti', '')).strip() or None
         cursor.execute("""
             INSERT INTO sitac_records (
                 no_pa, pelanggan, ptl, pic_perijinan, terminating,
                 latitude, longitude, coord_type, biaya_permintaan_awal, biaya_final,
                 efisiensi_rupiah, efisiensi_persen, is_berbiaya, progress, date_dispos, date_close,
-                durasi_hari, aging_category, update_pekerjaan, bulan, tahun
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                durasi_hari, aging_category, update_pekerjaan, bulan, tahun, foto_bukti
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             no_pa, pelanggan, str(b.get('ptl', '')).strip(), str(b.get('pic_perijinan', '')).strip(),
             str(b.get('terminating', '')).strip(), lat, lon, "USER_INPUT",
             b_awal, b_final, eff_rp, eff_pct, is_berbiaya, progress,
             date_dispos, date_close, durasi_hari, aging, str(b.get('update_pekerjaan', '')).strip(),
-            now.month, now.year
+            now.month, now.year, foto_bukti
         ))
         new_id = cursor.lastrowid
         conn.commit()
@@ -1103,18 +1779,20 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         sla_target = str(b.get('sla_target', 'H+1')).strip() or 'H+1'
         b_gangguan = safe_int(b.get('biaya_gangguan', 0))
 
+        foto_bukti = str(b.get('foto_bukti', '')).strip() or None
+
         cursor.execute("""
             INSERT INTO gangguan_records (
                 no_tiket, tgl_dispos, tgl_selesai, terminating, jenis_gangguan,
                 pic_perijinan, biaya_gangguan, status_pekerjaan, is_selesai,
-                update_gangguan, sla_target
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                update_gangguan, sla_target, foto_bukti
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             no_tiket, tgl_dispos, tgl_selesai, str(b.get('terminating', '')).strip(),
             str(b.get('jenis_gangguan', 'FO Cut / Utilitas')).strip(), str(b.get('pic_perijinan', '')).strip(),
             b_gangguan, status_pekerjaan, is_selesai,
             str(b.get('update_gangguan', '')).strip() or 'Tiket baru dibuat dalam penanganan tim',
-            sla_target
+            sla_target, foto_bukti
         ))
         new_id = cursor.lastrowid
         conn.commit()
@@ -1124,6 +1802,65 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         conn.close()
 
         self.send_json({"success": True, "message": "Tiket gangguan baru berhasil ditambahkan", "record": rec}, 201)
+
+    def handle_upload_file(self, body):
+        import base64
+        import time
+
+        filename = body.get('filename', 'upload.jpg')
+        data_uri = body.get('data', '')
+        target_type = body.get('type', '')
+        target_id = body.get('id', None)
+
+        if not data_uri:
+            return self.send_error_json("Data file base64 tidak ditemukan", 400)
+
+        if "," in data_uri:
+            data_b64 = data_uri.split(",", 1)[1]
+        else:
+            data_b64 = data_uri
+
+        try:
+            file_bytes = base64.b64decode(data_b64)
+        except Exception as e:
+            return self.send_error_json(f"Gagal mendekode base64: {str(e)}", 400)
+
+        safe_name = "".join(c for c in filename if c.isalnum() or c in "._-").strip()
+        if not safe_name:
+            safe_name = "bukti_lapangan.jpg"
+        ts = int(time.time())
+        saved_filename = f"{ts}_{safe_name}"
+
+        uploads_dir = os.path.join(BASE_DIR, "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        file_path = os.path.join(uploads_dir, saved_filename)
+
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
+
+        if target_type and target_id:
+            table = None
+            if target_type == 'gangguan':
+                table = 'gangguan_records'
+            elif target_type == 'sitac':
+                table = 'sitac_records'
+            elif target_type == 'collo':
+                table = 'collo_records'
+
+            if table:
+                conn = get_db()
+                cur = conn.cursor()
+                cur.execute(f"UPDATE {table} SET foto_bukti = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (saved_filename, int(target_id)))
+                conn.commit()
+                conn.close()
+
+        file_url = f"/uploads/{saved_filename}"
+        self.send_json({
+            "success": True,
+            "message": "File bukti lapangan berhasil diunggah",
+            "filename": saved_filename,
+            "file_url": file_url
+        })
 
 def run():
     init_users_table()

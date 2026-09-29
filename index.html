@@ -15,15 +15,24 @@
         extend: {
           colors: {
             portal: {
-              dark: '#080c14',
-              sidebar: '#0c1220',
-              card: 'rgba(16, 24, 40, 0.85)',
-              border: 'rgba(255, 255, 255, 0.08)',
-              cyan: '#06b6d4',
-              emerald: '#10b981',
-              amber: '#f59e0b',
-              rose: '#ef4444',
-              indigo: '#6366f1'
+              dark: '#0e1720',
+              sidebar: '#101c26',
+              card: 'rgba(36, 91, 118, 0.40)',
+              border: 'rgba(136, 181, 196, 0.16)',
+              red: '#db080f',
+              orange: '#da5e0f',
+              cyan: '#13aae9',
+              yellow: '#f6eb04',
+              plum: '#964b63',
+              mint: '#61bb9f',
+              amber: '#e1a117',
+              white: '#f5f6f6',
+              marine: '#245b76',
+              citron: '#e0e985',
+              ice: '#88b5c4',
+              emerald: '#61bb9f',
+              rose: '#db080f',
+              indigo: '#245b76'
             }
           }
         }
@@ -46,10 +55,17 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- jsPDF + AutoTable for PDF Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- SheetJS for Native Excel (.xlsx) Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <!-- Custom Portal Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=2.7">
+  <link rel="stylesheet" href="styles.css?v=6.9">
 </head>
-<body class="bg-[#080c14] text-slate-100 font-sans antialiased min-h-screen flex overflow-x-hidden">
+<body class="font-sans antialiased min-h-screen flex overflow-x-hidden">
 
   <!-- =========================================================================
        1. SIDEBAR NAVIGATION (STRICT MODULAR SEPARATION)
@@ -145,10 +161,13 @@
     <!-- Sidebar Footer -->
     <div class="sidebar-bottom">
       <div class="db-status-pill">
-        <span class="pulse-dot"></span>
+        <span class="pulse-dot bg-amber-400"></span>
         <div class="text-[11px] leading-tight">
-          <div class="font-bold text-slate-200">SQLite + REST API</div>
-          <div class="text-slate-400">telecom_portal.db (Active)</div>
+          <div class="font-bold text-slate-100 flex items-center gap-1">
+            <i class="fa-solid fa-cloud text-amber-400 text-[10px]"></i>
+            <span>Google Firestore</span>
+          </div>
+          <div class="text-amber-300 font-medium">analytics-f83f5 (Active)</div>
         </div>
       </div>
       <button id="themeToggleBtn" class="theme-btn" title="Toggle Dark/Light Mode">
@@ -162,44 +181,131 @@
        ========================================================================= -->
   <main class="portal-main flex-1 flex flex-col min-w-0">
     <!-- TOP HEADER BAR -->
-    <header class="portal-topbar flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#080c14]/90 backdrop-blur-md sticky top-0 z-30">
-      <div class="flex items-center gap-4">
+    <header class="portal-topbar flex items-center justify-between px-6 py-3.5 border-b border-white/10 bg-[#101c26]/95 backdrop-blur-md sticky top-0 z-50 gap-4">
+      <!-- Left: Breadcrumb & Title -->
+      <div class="flex items-center gap-3 shrink-0 min-w-0">
         <button id="sidebarToggleBtn" class="lg:hidden btn-icon" title="Toggle Menu">
           <i class="fa-solid fa-bars"></i>
         </button>
-        <div class="breadcrumbs">
-          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold" id="breadcrumbCategory">Overview</span>
-          <span class="text-slate-600 text-xs">/</span>
-          <h2 class="text-lg font-bold text-slate-100" id="breadcrumbPageTitle">Dashboard Ringkasan Eksekutif</h2>
+        <div class="breadcrumbs min-w-0">
+          <span class="text-[10px] uppercase tracking-wider text-[#e0e985] font-semibold block leading-none" id="breadcrumbCategory">Overview</span>
+          <h2 class="text-base font-bold text-[#f5f6f6] whitespace-nowrap mt-1 leading-tight" id="breadcrumbPageTitle">Dashboard Ringkasan Eksekutif</h2>
         </div>
       </div>
 
-      <div class="topbar-actions flex items-center gap-2.5">
-        <!-- Quick Action: + Tambah Data -->
-        <button id="btnOpenAddModal" class="btn btn-primary text-xs shadow-lg shadow-cyan-950/40">
+      <!-- Right: Organized Action Controls -->
+      <div class="topbar-actions flex items-center gap-2 shrink-0">
+        <!-- 1. Primary Action: + Tambah Data -->
+        <button id="btnOpenAddModal" class="btn btn-primary text-xs shadow-lg shadow-[#aeb5ec]/25">
           <i class="fa-solid fa-plus"></i>
-          <span>Tambah Data Baru</span>
+          <span>Tambah Data</span>
         </button>
 
-        <!-- Quick Export Current View -->
-        <button id="btnQuickExport" class="btn btn-secondary text-xs" title="Export Current View Data to CSV/Excel">
-          <i class="fa-solid fa-file-export"></i>
-          <span>Export CSV</span>
-        </button>
+        <!-- 2. Ekspor Group Dropdown -->
+        <div class="relative inline-block text-left" id="exportGroupDropdownContainer">
+          <button id="btnToggleExportMenu" class="btn btn-secondary text-xs hover:border-[#b1e37c]/60 hover:text-[#b1e37c] transition" title="Pilihan Ekspor Laporan">
+            <i class="fa-solid fa-file-export text-[#b1e37c] text-[11px]"></i>
+            <span>Ekspor</span>
+            <i class="fa-solid fa-chevron-down text-[9px] opacity-70 ml-0.5"></i>
+          </button>
+          
+          <div id="exportGroupMenu" class="hidden absolute right-0 top-full mt-2 w-64 rounded-xl bg-[#181d2e]/98 border border-[#b1e37c]/30 shadow-2xl p-2 z-[9999] backdrop-blur-lg space-y-1">
+            <button type="button" id="btnExportExcel" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9]">
+              <i class="fa-solid fa-file-excel text-[#b1e37c] text-sm w-4 text-center"></i>
+              <div>
+                <div class="font-bold text-[#b1e37c]">Ekspor Excel (.xlsx)</div>
+                <div class="text-[10px] text-[#f4d5c9]/70">Unduh data aktif ke Sheet Excel</div>
+              </div>
+            </button>
 
-        <!-- Active User Profile Pill -->
-        <div id="topbarUserProfile" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs">
-          <div id="userRoleAvatar" class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            <i class="fa-solid fa-helmet-safety" id="userRoleIcon"></i>
-          </div>
-          <div class="leading-tight text-left">
-            <div class="font-bold text-slate-200 text-[11px]" id="userNameDisplay">Tim Lapangan</div>
-            <div class="text-[9px] uppercase tracking-wider text-emerald-400 font-semibold" id="userRoleDisplay">FIELD OPERATIONS</div>
+            <button type="button" id="btnQuickExport" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9]">
+              <i class="fa-solid fa-file-csv text-[#aeb5ec] text-sm w-4 text-center"></i>
+              <div>
+                <div class="font-bold text-[#aeb5ec]">Ekspor CSV (.csv)</div>
+                <div class="text-[10px] text-[#f4d5c9]/70">Unduh format CSV standar</div>
+              </div>
+            </button>
+
+            <div class="my-1 border-t border-white/10"></div>
+
+            <a href="/api/download/pdf-report" download="Laporan_Rekap_Telecom_Ops.pdf" id="btnDownloadMasterPdf" class="flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9]">
+              <i class="fa-solid fa-file-pdf text-[#ecc0ae] text-sm w-4 text-center"></i>
+              <div>
+                <div class="font-bold text-[#ecc0ae]">Laporan Master PDF</div>
+                <div class="text-[10px] text-[#f4d5c9]/70">Rekap PDF lengkap semua modul</div>
+              </div>
+            </a>
+
+            <button type="button" id="btnExportCurrentModulePdf" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9]">
+              <i class="fa-solid fa-file-lines text-[#d2edb6] text-sm w-4 text-center"></i>
+              <div>
+                <div class="font-bold text-[#d2edb6]">Cetak Modul Aktif PDF</div>
+                <div class="text-[10px] text-[#f4d5c9]/70">Cetak tabel layar aktif</div>
+              </div>
+            </button>
           </div>
         </div>
 
-        <!-- Logout / Switch Account Button -->
-        <button id="btnLogout" class="btn btn-secondary text-xs hover:border-rose-500/40 hover:text-rose-400 transition" title="Keluar / Ganti Peran">
+        <!-- 3. Alat Portal & Manajemen Database Dropdown -->
+        <div class="relative inline-block text-left" id="toolsGroupDropdownContainer">
+          <button id="btnToggleToolsMenu" class="btn btn-secondary text-xs hover:border-[#aeb5ec]/60 hover:text-[#aeb5ec] transition" title="Alat & Manajemen Portal">
+            <i class="fa-solid fa-sliders text-[#aeb5ec] text-[11px]"></i>
+            <span>Alat Portal</span>
+            <i class="fa-solid fa-chevron-down text-[9px] opacity-70 ml-0.5"></i>
+          </button>
+
+          <div id="toolsGroupMenu" class="hidden absolute right-0 top-full mt-2 w-60 rounded-xl bg-[#181d2e]/98 border border-[#aeb5ec]/30 shadow-2xl p-2 z-[9999] backdrop-blur-lg space-y-1">
+            <button type="button" id="btnOpenImportExcel" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9]">
+              <i class="fa-solid fa-file-import text-[#b1e37c] text-sm w-4 text-center"></i>
+              <span>Import Bulk Excel</span>
+            </button>
+
+            <button type="button" id="btnOpenAuditLogs" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9]">
+              <i class="fa-solid fa-clock-rotate-left text-[#ecc0ae] text-sm w-4 text-center"></i>
+              <span>Riwayat Aktivitas Log</span>
+            </button>
+
+            <button type="button" id="btnOpenDatabaseViewer" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9]">
+              <i class="fa-solid fa-database text-[#aeb5ec] text-sm w-4 text-center"></i>
+              <span>Akses & Explorer DB</span>
+            </button>
+
+            <button type="button" id="btnOpenAdminUsers" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9] hidden">
+              <i class="fa-solid fa-users-gear text-[#d2edb6] text-sm w-4 text-center"></i>
+              <span>Kelola Akun PIC (Admin)</span>
+            </button>
+
+            <div class="my-1 border-t border-white/10"></div>
+
+            <button type="button" id="btnOpenChangePassword" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#252c42]/80 text-left transition text-xs text-[#f4d5c9]">
+              <i class="fa-solid fa-key text-[#ecc0ae] text-sm w-4 text-center"></i>
+              <span>Ganti Password Akun</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. User Profile & Technician Selector -->
+        <div id="topbarUserProfile" class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs">
+          <div id="userRoleAvatar" class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+            <i class="fa-solid fa-helmet-safety" id="userRoleIcon"></i>
+          </div>
+          <div class="leading-tight text-left">
+            <div class="font-bold text-slate-100 text-[11px] truncate max-w-[110px]" id="userNameDisplay">Tim Lapangan</div>
+            <div class="text-[8px] uppercase tracking-wider text-emerald-400 font-semibold truncate max-w-[110px]" id="userRoleDisplay">FIELD OPERATIONS</div>
+          </div>
+          <!-- Locked Account Identity Badge (Mencegah gonta-ganti user seenaknya) -->
+          <div class="border-l border-white/10 pl-2 ml-0.5 flex items-center gap-1.5 shrink-0" id="lockedAccountBadgeWrapper">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[9px] font-semibold" title="Identitas akun terverifikasi dan terkunci pada sesi Firebase">
+              <i class="fa-solid fa-lock text-[8px]"></i>
+              <span id="lockedPicBadgeName">PIC: TERKUNCI</span>
+            </span>
+            <!-- Hidden input for backwards compatibility -->
+            <input type="hidden" id="selectActiveTechnician" value="Harlan">
+          </div>
+        </div>
+
+        <!-- 5. Logout Button -->
+        <button id="btnLogout" class="btn btn-secondary text-xs hover:border-rose-500/40 hover:text-rose-400 transition py-1 px-2.5" title="Keluar / Ganti Peran">
           <i class="fa-solid fa-right-from-bracket"></i>
           <span class="hidden md:inline">Keluar</span>
         </button>
@@ -213,6 +319,31 @@
            VIEW 1: DASHBOARD RINGKASAN (EXECUTIVE OVERVIEW)
            ===================================================================== -->
       <section id="view-executive" class="portal-view active space-y-6">
+        <!-- Period Filter & Custom Date Range Toolbar -->
+        <div class="p-3.5 rounded-xl bg-slate-900/60 border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-calendar-days text-cyan-400 text-sm"></i>
+            <span class="font-bold text-slate-100">Filter Periode Analisis:</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="execFilterPeriod" class="filter-input px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white font-semibold cursor-pointer">
+              <option value="ALL">Semua Periode (Akumulasi)</option>
+              <option value="2026">Tahun Ini (2026)</option>
+              <option value="Q1">Kuartal 1 (Q1 2026)</option>
+              <option value="Q2">Kuartal 2 (Q2 2026)</option>
+              <option value="Q3">Kuartal 3 (Q3 2026)</option>
+              <option value="Q4">Kuartal 4 (Q4 2026)</option>
+              <option value="CUSTOM">Rentang Tanggal Custom...</option>
+            </select>
+            <div id="execCustomDateWrap" class="hidden items-center gap-1.5">
+              <input type="date" id="execDateStart" class="filter-input px-2.5 py-1 text-xs rounded bg-slate-900 border border-white/10 text-white">
+              <span class="text-slate-400">s/d</span>
+              <input type="date" id="execDateEnd" class="filter-input px-2.5 py-1 text-xs rounded bg-slate-900 border border-white/10 text-white">
+              <button id="btnApplyExecCustomDate" class="btn btn-primary text-xs py-1 px-2.5 bg-cyan-600 hover:bg-cyan-500">Terapkan</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Unified Metric Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Card 1: Active Circuits -->
@@ -511,6 +642,10 @@
                 <option value="biaya_desc">Biaya Terbesar</option>
                 <option value="sisa_hari_asc">Jatuh Tempo Terdekat</option>
               </select>
+              <button class="btn btn-secondary text-xs flex items-center gap-1.5" id="btnExportColloExcel" title="Ekspor Data Colocation ke Excel (.xlsx)">
+                <i class="fa-solid fa-file-excel text-emerald-400"></i>
+                <span>Excel</span>
+              </button>
               <button class="btn btn-primary text-xs bg-indigo-600 hover:bg-indigo-500 border-indigo-500 shadow-md shadow-indigo-950/40" id="btnOpenAddColloDirect">
                 <i class="fa-solid fa-plus"></i>
                 <span>Tambah Link Sewa</span>
@@ -518,14 +653,36 @@
             </div>
           </div>
 
-          <!-- Filter Summary Stats Bar -->
+          <!-- Filter Summary Stats: 1 Button to View Totals -->
           <div class="flex items-center justify-between text-xs text-slate-300 pt-3 mt-3 border-t border-white/5">
-            <span id="colloTableSummaryText">Menampilkan <strong>880</strong> sirkuit</span>
-            <div class="flex items-center gap-4 flex-wrap">
-              <span>Total Rev Sewa (1 Thn): <strong class="text-emerald-400 font-mono" id="colloSumRev">Rp 0</strong></span>
-              <span>Total Biaya OTC: <strong class="text-purple-400 font-mono" id="colloSumOtc">Rp 0</strong></span>
-              <span>Total Biaya Sewa (1 Thn): <strong class="text-amber-400 font-mono" id="colloSumBiaya">Rp 0</strong></span>
-              <span>Total Margin: <strong class="text-cyan-400 font-mono" id="colloSumMargin">Rp 0</strong></span>
+            <span id="colloTableSummaryText">Menampilkan <strong>860</strong> sirkuit</span>
+
+            <button id="btnToggleColloFinSummary" type="button" class="btn btn-secondary text-xs flex items-center gap-2 py-1.5 px-3 bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200 transition shadow-sm" title="Klik untuk menampilkan / menyembunyikan rincian biaya">
+              <i class="fa-solid fa-coins text-emerald-400 text-sm"></i>
+              <span class="font-semibold">Lihat Total Biaya & Margin</span>
+              <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-0.5 transition-transform" id="iconColloFinChevron"></i>
+            </button>
+          </div>
+
+          <!-- Expandable Financial Summary Panel (Inline, never clipped by any border) -->
+          <div id="colloFinSummaryCard" class="hidden mt-3 pt-3 border-t border-white/10">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div class="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/20">
+                <span class="text-[10px] text-slate-400 uppercase block font-semibold">Total Rev Sewa (1 Thn)</span>
+                <strong class="text-emerald-400 font-mono text-sm sm:text-base block mt-1" id="colloSumRev">Rp 0</strong>
+              </div>
+              <div class="p-3 rounded-xl bg-purple-950/30 border border-purple-500/20">
+                <span class="text-[10px] text-slate-400 uppercase block font-semibold">Total Biaya OTC</span>
+                <strong class="text-purple-400 font-mono text-sm sm:text-base block mt-1" id="colloSumOtc">Rp 0</strong>
+              </div>
+              <div class="p-3 rounded-xl bg-amber-950/30 border border-amber-500/20">
+                <span class="text-[10px] text-slate-400 uppercase block font-semibold">Total Biaya Sewa (1 Thn)</span>
+                <strong class="text-amber-400 font-mono text-sm sm:text-base block mt-1" id="colloSumBiaya">Rp 0</strong>
+              </div>
+              <div class="p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/20">
+                <span class="text-[10px] text-slate-400 uppercase block font-semibold">Total Gross Margin</span>
+                <strong class="text-cyan-400 font-mono text-sm sm:text-base block mt-1" id="colloSumMargin">Rp 0</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -797,7 +954,7 @@
                 <i class="fa-solid fa-stopwatch text-cyan-400"></i>
                 <span>Distribusi SLA Aging Pengerjaan Lapangan</span>
               </div>
-              <span class="pbi-visual-badge">Durasi Hari</span>
+              <span class="pbi-visual-badge" id="sitacAgingChartBadge">Durasi Hari</span>
             </div>
             <div class="p-4 h-[250px]">
               <canvas id="chartSitacAging"></canvas>
@@ -811,7 +968,7 @@
                 <i class="fa-solid fa-chart-pie text-emerald-400"></i>
                 <span>Proporsi Status Hasil Penugasan (PA)</span>
               </div>
-              <span class="pbi-visual-badge">Total 451 PA</span>
+              <span class="pbi-visual-badge" id="sitacChartTotalBadge">Total 451 PA</span>
             </div>
             <div class="p-4 h-[250px] flex items-center justify-center">
               <canvas id="chartSitacStatusDetail"></canvas>
@@ -853,6 +1010,16 @@
                 <option value="2025">2025</option>
                 <option value="2024">2024</option>
               </select>
+              <!-- Quick Filter: Penugasan Saya -->
+              <button type="button" class="btn btn-secondary text-xs flex items-center gap-1.5 btn-my-tasks" id="btnSitacMyTasks" title="Filter hanya penugasan PA untuk teknisi aktif">
+                <i class="fa-solid fa-user-gear text-cyan-400"></i>
+                <span>Penugasan Saya</span>
+                <span id="sitacMyTasksCount" class="hidden px-1.5 py-0.2 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 font-mono font-bold">0</span>
+              </button>
+              <button type="button" class="btn btn-secondary text-xs flex items-center gap-1.5" id="btnExportSitacExcel" title="Ekspor Data SITAC ke Excel (.xlsx)">
+                <i class="fa-solid fa-file-excel text-emerald-400"></i>
+                <span>Excel</span>
+              </button>
               <button class="btn btn-primary text-xs shadow-md shadow-cyan-950/40" id="btnOpenAddSitacDirect">
                 <i class="fa-solid fa-plus"></i>
                 <span>Input Proyek PA</span>
@@ -925,7 +1092,7 @@
                 <i class="fa-solid fa-hourglass-half text-amber-400"></i>
                 <span>Status Penyelesaian Insiden (SLA H+0 / H+1)</span>
               </div>
-              <span class="pbi-visual-badge">393 Tiket</span>
+              <span class="pbi-visual-badge">98 Tiket</span>
             </div>
             <div class="p-4 h-[250px] flex items-center justify-center">
               <canvas id="chartGangguanSla"></canvas>
@@ -934,28 +1101,96 @@
         </div>
 
         <!-- Toolbar & Incident Target Pill -->
-        <div class="filter-toolbar-card flex flex-wrap items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <div class="p-2 bg-rose-500/10 text-rose-400 rounded-lg">
-              <i class="fa-solid fa-bolt text-lg"></i>
+        <div class="filter-toolbar-card space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-rose-500/10 text-rose-400 rounded-lg">
+                <i class="fa-solid fa-bolt text-lg"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-sm text-slate-100">Pemeliharaan & Perizinan Darurat Lapangan</h3>
+                <p class="text-xs text-slate-400">Target Incident SLA: <strong class="text-amber-400">H+0 s/d H+1</strong> (Kabel putus, perapihan utilitas, pemindahan tiang)</p>
+              </div>
             </div>
-            <div>
-              <h3 class="font-bold text-sm text-slate-100">Pemeliharaan & Perizinan Darurat Lapangan</h3>
-              <p class="text-xs text-slate-400">Target Incident SLA: <strong class="text-amber-400">H+0 s/d H+1</strong> (Kabel putus, perapihan utilitas, pemindahan tiang)</p>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-white/10" id="gangguanStatusTabs">
+                <button class="gangguan-tab-btn active" data-status="ALL">Semua <span id="gangguanBadgeAll" class="text-xs font-mono opacity-80">(98)</span></button>
+                <button class="gangguan-tab-btn" data-status="0">Proses / Open <span id="gangguanBadgeOpen" class="text-xs font-mono opacity-80">(13)</span></button>
+                <button class="gangguan-tab-btn" data-status="1">Selesai <span id="gangguanBadgeClosed" class="text-xs font-mono opacity-80">(85)</span></button>
+              </div>
+              <!-- Quick Filter: Penugasan Saya -->
+              <button type="button" class="btn btn-secondary text-xs flex items-center gap-1.5 btn-my-tasks" id="btnGangguanMyTasks" title="Filter hanya tiket gangguan untuk teknisi aktif">
+                <i class="fa-solid fa-user-gear text-cyan-400"></i>
+                <span>Penugasan Saya</span>
+                <span id="gangguanMyTasksCount" class="hidden px-1.5 py-0.2 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 font-mono font-bold">0</span>
+              </button>
+              <input type="text" id="gangguanSearchInput" class="filter-input text-xs w-52" placeholder="Cari Tiket, Lokasi, PIC...">
+              <button type="button" class="btn btn-secondary text-xs flex items-center gap-1.5" id="btnExportGangguanExcel" title="Ekspor Data Gangguan ke File Excel (.xlsx)">
+                <i class="fa-solid fa-file-excel text-emerald-400"></i>
+                <span>Excel</span>
+              </button>
+              <button class="btn btn-primary text-xs bg-rose-600 hover:bg-rose-500 border-rose-500 shadow-md shadow-rose-950/40" id="btnOpenAddGangguanDirect">
+                <i class="fa-solid fa-plus"></i>
+                <span>Lapor Gangguan Baru</span>
+              </button>
             </div>
           </div>
 
-          <div class="flex items-center gap-3">
-            <div class="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-white/10" id="gangguanStatusTabs">
-              <button class="gangguan-tab-btn active" data-status="ALL">Semua (393)</button>
-              <button class="gangguan-tab-btn" data-status="0">Proses / Open (297)</button>
-              <button class="gangguan-tab-btn" data-status="1">Selesai (96)</button>
+          <!-- Date Search & Time Period Filter Sub-Bar -->
+          <div class="pt-2.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <div class="flex items-center gap-1.5 text-slate-300 font-semibold">
+                <i class="fa-solid fa-calendar-days text-rose-400"></i>
+                <span>Filter Periode:</span>
+              </div>
+
+              <!-- Basis Tanggal Selector -->
+              <select id="gangguanDateType" class="filter-select text-xs py-1 px-2.5 bg-slate-900 border border-white/15 rounded-lg text-slate-200 focus:border-rose-500" title="Basis Tanggal">
+                <option value="dispos" selected>Tgl Disposisi / Lapor</option>
+                <option value="selesai">Tgl Selesai / Close</option>
+              </select>
+
+              <!-- Quick Presets -->
+              <div class="flex items-center gap-1 bg-slate-900/90 p-0.5 rounded-lg border border-white/10" id="gangguanQuickPeriods">
+                <button type="button" class="gangguan-period-btn active" data-period="all">Semua</button>
+                <button type="button" class="gangguan-period-btn" data-period="today">Hari Ini</button>
+                <button type="button" class="gangguan-period-btn" data-period="last7">7 Hari</button>
+                <button type="button" class="gangguan-period-btn" data-period="last30">30 Hari</button>
+                <button type="button" class="gangguan-period-btn" data-period="thisMonth">Bulan Ini</button>
+                <button type="button" class="gangguan-period-btn" data-period="year2025">2025</button>
+                <button type="button" class="gangguan-period-btn" data-period="year2026">2026</button>
+              </div>
+
+              <!-- Date Range Pickers (Dari - Sampai) -->
+              <div class="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-white/10">
+                <label for="gangguanStartDate" class="text-slate-400 text-[11px] font-medium">Dari:</label>
+                <input type="date" id="gangguanStartDate" class="bg-transparent text-slate-200 text-xs border-none outline-none focus:ring-0 p-0 cursor-pointer" title="Tanggal Mulai">
+                <span class="text-slate-500 font-bold">s/d</span>
+                <label for="gangguanEndDate" class="text-slate-400 text-[11px] font-medium">Sampai:</label>
+                <input type="date" id="gangguanEndDate" class="bg-transparent text-slate-200 text-xs border-none outline-none focus:ring-0 p-0 cursor-pointer" title="Tanggal Selesai">
+              </div>
+
+              <!-- Cari Tanggal Spesifik (Single Date Search) -->
+              <div class="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-white/10" title="Cari tiket pada satu tanggal tertentu">
+                <i class="fa-solid fa-crosshairs text-slate-400 text-[10px]"></i>
+                <label for="gangguanExactDate" class="text-slate-400 text-[11px] font-medium">Cari Tgl:</label>
+                <input type="date" id="gangguanExactDate" class="bg-transparent text-slate-200 text-xs border-none outline-none focus:ring-0 p-0 cursor-pointer" title="Pilih tanggal spesifik">
+              </div>
+
+              <!-- Reset Button -->
+              <button type="button" id="btnResetGangguanDate" class="btn btn-secondary btn-sm py-1 px-2.5 text-xs text-slate-400 hover:text-white hover:border-slate-500 transition-colors" title="Bersihkan & Reset Filter Tanggal">
+                <i class="fa-solid fa-rotate-left mr-1"></i> Reset
+              </button>
             </div>
-            <input type="text" id="gangguanSearchInput" class="filter-input text-xs w-64" placeholder="Cari Tiket, Lokasi, PIC...">
-            <button class="btn btn-primary text-xs bg-rose-600 hover:bg-rose-500 border-rose-500 shadow-md shadow-rose-950/40" id="btnOpenAddGangguanDirect">
-              <i class="fa-solid fa-plus"></i>
-              <span>Lapor Gangguan Baru</span>
-            </button>
+
+            <!-- Dynamic Result Info Badge -->
+            <div id="gangguanDateFilterSummary" class="flex items-center gap-2 text-xs text-slate-300 bg-slate-900/80 px-3 py-1 rounded-lg border border-white/10">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span id="gangguanFilterCountText">Menampilkan <strong>98</strong> tiket</span>
+              <span class="text-slate-500">|</span>
+              <span class="text-amber-400 font-mono font-semibold" id="gangguanFilterBiayaText">Rp 74,03 Jt</span>
+            </div>
           </div>
         </div>
 
@@ -1259,6 +1494,11 @@
             <label class="form-label">Catatan Update Penanganan</label>
             <textarea name="update_gangguan" rows="2" class="filter-input w-full text-xs" placeholder="Detail penanganan tim teknis di lapangan..."></textarea>
           </div>
+          <div>
+            <label class="form-label">Upload Foto Bukti Lapangan / Berita Acara (Opsional)</label>
+            <input type="file" id="addGangguanFotoInput" accept="image/*,application/pdf" class="filter-input w-full text-xs cursor-pointer">
+            <span class="text-[10px] text-slate-500 mt-0.5 block">Format: JPG, PNG, atau PDF (Foto sambungan kabel, tiang, surat izin, dll.)</span>
+          </div>
           <div class="pt-2 text-right">
             <button type="submit" class="btn btn-primary text-xs bg-rose-600 hover:bg-rose-500 border-rose-500"><i class="fa-solid fa-save"></i> Simpan Tiket Gangguan</button>
           </div>
@@ -1343,6 +1583,11 @@
           <div>
             <label class="form-label">Catatan Update Lapangan</label>
             <textarea name="update_pekerjaan" rows="2" class="filter-input w-full text-xs" placeholder="Progress negosiasi biaya, instansi perizinan, dll..."></textarea>
+          </div>
+          <div>
+            <label class="form-label">Upload Foto Bukti / Dokumen Izin (Opsional)</label>
+            <input type="file" id="addSitacFotoInput" accept="image/*,application/pdf" class="filter-input w-full text-xs cursor-pointer">
+            <span class="text-[10px] text-slate-500 mt-0.5 block">Format: JPG, PNG, atau PDF (Surat izin, kuitansi retribusi, dll.)</span>
           </div>
           <div class="pt-2 text-right">
             <button type="submit" class="btn btn-primary text-xs"><i class="fa-solid fa-save"></i> Simpan Disposisi SITAC</button>
@@ -1559,6 +1804,22 @@
       <div class="modal-body p-6" id="detailContent">
         <!-- Dynamic detail grid -->
       </div>
+      <div class="modal-footer px-6 py-3.5 bg-slate-950/70 border-t border-white/5 flex flex-wrap items-center justify-between gap-2">
+        <button type="button" class="btn btn-secondary text-xs text-rose-400 hover:text-rose-300 border-rose-500/30 hover:bg-rose-500/10" id="btnDetailDeleteAction">
+          <i class="fa-solid fa-trash-can"></i> Hapus Data
+        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-whatsapp text-xs" id="btnDetailWhatsAppAction" title="Bagikan Ringkasan Laporan ke WhatsApp">
+            <i class="fa-brands fa-whatsapp text-sm"></i> Kirim ke WhatsApp
+          </button>
+          <button type="button" class="btn btn-secondary text-xs" id="btnDetailEditAction">
+            <i class="fa-solid fa-pen-to-square"></i> Edit / Update
+          </button>
+          <button type="button" class="btn btn-primary text-xs" id="btnDetailCloseAction">
+            Tutup
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1568,89 +1829,655 @@
   <div id="loginOverlay" class="login-screen-overlay" style="display: none;">
     <div class="login-card-container">
       <!-- Portal Brand Logo & Glow -->
-      <div class="login-brand-header text-center mb-6">
-        <div class="login-logo-glow mx-auto mb-3">
+      <div class="login-brand-header text-center mb-4">
+        <div class="login-logo-glow mx-auto mb-2.5">
           <i class="fa-solid fa-satellite-dish text-cyan-400 text-2xl"></i>
         </div>
         <h2 class="text-xl font-extrabold tracking-wide text-white">TELECOM OPERATIONS PORTAL</h2>
-        <p class="text-xs text-slate-400 mt-1">Sistem Terpadu Manajemen Lapangan & Sewa Infrastruktur</p>
-      </div>
-
-      <!-- Quick Role Selection / 1-Click Access -->
-      <div class="quick-role-section mb-5">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center mb-3">
-          ⚡ Akses Cepat Berdasarkan Peran
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <!-- Button 1: Tim Lapangan -->
-          <button type="button" class="quick-role-btn role-lapangan-btn" id="btnQuickLoginLapangan">
-            <div class="role-icon-box bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              <i class="fa-solid fa-helmet-safety text-lg"></i>
-            </div>
-            <div class="role-text-box text-left">
-              <div class="role-name text-emerald-300 font-bold text-xs">Tim Lapangan</div>
-              <div class="role-desc text-[10px] text-slate-400">Khusus SITAC, Insiden & Peta</div>
-            </div>
-          </button>
-
-          <!-- Button 2: Manajemen / Admin -->
-          <button type="button" class="quick-role-btn role-admin-btn" id="btnQuickLoginAdmin">
-            <div class="role-icon-box bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-              <i class="fa-solid fa-shield-halved text-lg"></i>
-            </div>
-            <div class="role-text-box text-left">
-              <div class="role-name text-cyan-300 font-bold text-xs">Manajemen / Admin</div>
-              <div class="role-desc text-[10px] text-slate-400">Akses Penuh Seluruh Modul</div>
-            </div>
-          </button>
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-1.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <i class="fa-solid fa-cloud text-[9px]"></i> Google Firebase Authentication
         </div>
       </div>
 
-      <div class="relative flex items-center justify-center my-4">
-        <div class="border-t border-white/10 w-full"></div>
-        <span class="bg-[#101828] px-3 text-[10px] text-slate-500 uppercase tracking-widest absolute">atau masuk manual</span>
-      </div>
-
-      <!-- Manual Login Form -->
-      <form id="formLogin" class="space-y-3.5">
-        <div id="loginErrorAlert" class="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs hidden">
-          <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span id="loginErrorMsg">Username atau password salah</span>
-        </div>
-
-        <div>
-          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Username</label>
-          <div class="relative">
-            <i class="fa-solid fa-user absolute left-3 top-3 text-slate-500 text-xs"></i>
-            <input type="text" id="loginUsername" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white" placeholder="Contoh: lapangan atau admin" required>
-          </div>
-        </div>
-
-        <div>
-          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Password</label>
-          <div class="relative">
-            <i class="fa-solid fa-lock absolute left-3 top-3 text-slate-500 text-xs"></i>
-            <input type="password" id="loginPassword" class="filter-input w-full pl-8 pr-9 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white" placeholder="••••••••" required>
-            <button type="button" id="btnTogglePassword" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 text-xs">
-              <i class="fa-solid fa-eye" id="passwordEyeIcon"></i>
-            </button>
-          </div>
-        </div>
-
-        <button type="submit" id="btnLoginSubmit" class="btn btn-primary w-full justify-center py-2.5 text-xs font-bold tracking-wide mt-2 shadow-lg shadow-cyan-950/50">
-          <i class="fa-solid fa-right-to-bracket mr-1"></i> Masuk ke Portal
+      <!-- Mode Switcher: Masuk vs Daftar Baru -->
+      <div class="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-white/10 mb-4" id="loginModeTabs">
+        <button type="button" class="login-mode-tab-btn active flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition text-white" id="tabModeLogin" data-target="paneLogin">
+          <i class="fa-solid fa-right-to-bracket text-emerald-400"></i>
+          <span>Masuk ke Akun</span>
         </button>
+        <button type="button" class="login-mode-tab-btn flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white" id="tabModeRegister" data-target="paneRegister">
+          <i class="fa-solid fa-user-plus text-cyan-400"></i>
+          <span>Daftar Akun PIC Baru</span>
+        </button>
+      </div>
 
-        <div class="login-footer-hint text-center text-[10px] text-slate-500 pt-2">
-          Kredensial bawaan: <span class="text-emerald-400 font-mono">lapangan</span> / <span class="text-emerald-400 font-mono">lapangan123</span> &bull; <span class="text-cyan-400 font-mono">admin</span> / <span class="text-cyan-400 font-mono">admin123</span>
+      <!-- Status Alerts -->
+      <div id="loginErrorAlert" class="p-3 mb-3.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs hidden">
+        <i class="fa-solid fa-triangle-exclamation mr-1.5"></i> <span id="loginErrorMsg">Username atau kata sandi salah</span>
+      </div>
+      <div id="loginSuccessAlert" class="p-3 mb-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs hidden">
+        <i class="fa-solid fa-circle-check mr-1.5"></i> <span id="loginSuccessMsg">Pendaftaran berhasil</span>
+      </div>
+
+      <!-- PANE 1: MASUK KE AKUN (FIREBASE AUTHENTICATION) -->
+      <div id="paneLogin" class="space-y-4">
+        <!-- Login Form -->
+        <form id="formLogin" class="space-y-3.5">
+          <div>
+            <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Username atau Email Akun *</label>
+            <div class="relative">
+              <i class="fa-solid fa-user absolute left-3 top-3 text-slate-500 text-xs"></i>
+              <input type="text" id="loginUsername" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="Ketik username (misal: harlan) atau email" required autocomplete="username">
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="form-label text-xs text-slate-300 font-semibold block">Kata Sandi / Password *</label>
+              <button type="button" id="btnOpenForgotPassword" class="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold transition hover:underline flex items-center gap-1">
+                <i class="fa-solid fa-key text-[10px]"></i> Lupa Sandi?
+              </button>
+            </div>
+            <div class="relative">
+              <i class="fa-solid fa-lock absolute left-3 top-3 text-slate-500 text-xs"></i>
+              <input type="password" id="loginPassword" class="filter-input w-full pl-8 pr-9 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="Masukkan kata sandi akun Anda..." required autocomplete="current-password">
+              <button type="button" id="btnTogglePassword" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 text-xs" title="Lihat/Sembunyikan sandi">
+                <i class="fa-solid fa-eye" id="passwordEyeIcon"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btnLoginSubmit" class="btn btn-primary w-full justify-center py-2.5 text-xs font-bold tracking-wide mt-2 shadow-lg shadow-cyan-950/50">
+            <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Autentikasi & Masuk
+          </button>
+
+          <!-- Firebase Cloud Firestore Security Card -->
+          <div class="p-3 rounded-xl bg-slate-900/60 border border-cyan-500/20 text-[11px] text-slate-300 space-y-1">
+            <div class="flex items-center justify-between text-cyan-400 font-bold">
+              <div class="flex items-center gap-1.5">
+                <i class="fa-solid fa-shield-halved text-xs"></i>
+                <span>Keamanan Google Firebase Cloud</span>
+              </div>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono font-semibold">CLOUD FIRESTORE</span>
+            </div>
+            <div class="text-[10px] text-slate-400 leading-relaxed">
+              Sistem otentikasi tersentralisasi di Google Cloud Firestore dengan enkripsi SHA-256. Setiap aktivitas masuk tercatat pada audit log.
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- PANE 2: FITUR LUPA KATA SANDI (PEMULIHAN MANDIRI FIREBASE) -->
+      <div id="paneForgotPassword" class="space-y-4 hidden">
+        <div class="p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs text-slate-300">
+          <div class="font-bold text-cyan-300 flex items-center gap-1.5 mb-1 text-[13px]">
+            <i class="fa-solid fa-shield-heart text-cyan-400"></i> Pemulihan Kata Sandi Akun
+          </div>
+          <div class="text-[11px] text-slate-400 leading-relaxed">
+            Masukkan Username terdaftar atau Email akun Anda untuk memverifikasi akun dan membuat kata sandi baru di Google Firebase.
+          </div>
+        </div>
+
+        <!-- Alert Status Pemulihan -->
+        <div id="forgotPwAlert" class="p-3 rounded-lg text-xs hidden"></div>
+
+        <!-- Step 1: Cari & Verifikasi Akun -->
+        <form id="formForgotStep1" class="space-y-3.5">
+          <div>
+            <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Username atau Email Terdaftar *</label>
+            <div class="relative">
+              <i class="fa-solid fa-user-check absolute left-3 top-3 text-slate-500 text-xs"></i>
+              <input type="text" id="forgotIdentifier" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="Ketik username (misal: harlan) atau email" required autocomplete="username">
+            </div>
+          </div>
+
+          <button type="submit" id="btnForgotCheckAccount" class="btn btn-primary w-full justify-center py-2.5 text-xs font-bold tracking-wide shadow-lg shadow-cyan-950/50">
+            <i class="fa-solid fa-magnifying-glass mr-1.5"></i> Cek Akun di Firebase
+          </button>
+        </form>
+
+        <!-- Step 2: Atur Kata Sandi Baru -->
+        <form id="formForgotStep2" class="space-y-3.5 hidden">
+          <div class="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                <i class="fa-solid fa-user-check"></i>
+              </div>
+              <div>
+                <div class="font-bold text-white text-xs" id="forgotVerifiedName">Akun Terverifikasi</div>
+                <div class="text-[10px] text-slate-400" id="forgotVerifiedRole">Peran Akun (@username)</div>
+              </div>
+            </div>
+            <span class="text-[9px] uppercase font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded">TERVERIFIKASI</span>
+          </div>
+
+          <div>
+            <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Kata Sandi Baru *</label>
+            <div class="relative">
+              <i class="fa-solid fa-lock absolute left-3 top-3 text-slate-500 text-xs"></i>
+              <input type="password" id="forgotNewPassword" class="filter-input w-full pl-8 pr-9 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="Minimal 4 karakter" required autocomplete="new-password">
+              <button type="button" id="btnToggleForgotPw" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 text-xs" title="Lihat/Sembunyikan sandi">
+                <i class="fa-solid fa-eye" id="forgotEyeIcon"></i>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Konfirmasi Kata Sandi Baru *</label>
+            <div class="relative">
+              <i class="fa-solid fa-check-double absolute left-3 top-3 text-slate-500 text-xs"></i>
+              <input type="password" id="forgotConfirmPassword" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="Ulangi kata sandi baru" required autocomplete="new-password">
+            </div>
+          </div>
+
+          <button type="submit" id="btnForgotSubmitReset" class="btn btn-primary w-full justify-center py-2.5 text-xs font-bold tracking-wide shadow-lg shadow-cyan-950/50 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500">
+            <i class="fa-solid fa-key mr-1.5"></i> Simpan Sandi Baru ke Firebase
+          </button>
+        </form>
+
+        <div class="pt-2 text-center border-t border-white/10">
+          <button type="button" id="btnBackToLoginFromForgot" class="text-xs text-slate-400 hover:text-cyan-300 transition inline-flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-arrow-left text-[10px]"></i>
+            <span>Kembali ke Halaman Masuk</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PANE 3: FORM DAFTAR AKUN PIC BARU KE FIREBASE -->
+      <div id="paneRegister" class="space-y-3.5 hidden">
+        <div class="p-2.5 rounded-lg bg-cyan-950/20 border border-cyan-500/20 text-xs text-slate-300">
+          <div class="font-bold text-cyan-300 flex items-center gap-1.5 mb-0.5">
+            <i class="fa-solid fa-id-card-clip"></i> Pendaftaran Akun PIC Baru (Firebase)
+          </div>
+          <div class="text-[11px] text-slate-400">
+            Daftarkan teknisi baru ke Google Cloud Firestore. Data akun akan disimpan terenkripsi SHA-256 secara permanen di cloud.
+          </div>
+        </div>
+
+        <form id="formRegister" class="space-y-3">
+          <div>
+            <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Nama Lengkap Petugas PIC *</label>
+            <div class="relative">
+              <i class="fa-solid fa-id-card absolute left-3 top-3 text-slate-500 text-xs"></i>
+              <input type="text" id="regFullName" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white" placeholder="Contoh: Harlan Zaelani, Dani Kusuma..." required>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Username Baru *</label>
+              <div class="relative">
+                <i class="fa-solid fa-at absolute left-3 top-3 text-slate-500 text-xs"></i>
+                <input type="text" id="regUsername" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="huruf kecil, min 3 karakter" required autocomplete="username">
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Email Akun (Untuk Pemulihan / Lupa Sandi) *</label>
+              <div class="relative">
+                <i class="fa-solid fa-envelope absolute left-3 top-3 text-slate-500 text-xs"></i>
+                <input type="email" id="regEmail" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="nama@telecom.ops atau email aktif" required autocomplete="email">
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Tag PIC Penugasan *</label>
+            <select id="regPicCode" class="filter-select w-full py-2 px-2.5 text-xs rounded-lg bg-slate-900 border border-white/10 text-white focus:border-cyan-500 focus:outline-none">
+              <option value="Harlan">Harlan</option>
+              <option value="Budi">Budi Rodiyah</option>
+              <option value="Edi">Edi Swargaloka</option>
+              <option value="Abusopian">M. Abusopian</option>
+              <option value="Muhidin">Muhidin</option>
+              <option value="Brian">Brian Ariyanto</option>
+              <option value="Zulhadi">Zulhadi Syahril</option>
+              <option value="Custom">Petugas Baru (Sesuai Nama Depan)</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Buat Kata Sandi Baru *</label>
+              <div class="relative">
+                <i class="fa-solid fa-lock absolute left-3 top-3 text-slate-500 text-xs"></i>
+                <input type="password" id="regPassword" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="Minimal 4 karakter" required autocomplete="new-password">
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Ulangi Kata Sandi *</label>
+              <div class="relative">
+                <i class="fa-solid fa-check-double absolute left-3 top-3 text-slate-500 text-xs"></i>
+                <input type="password" id="regPasswordConfirm" class="filter-input w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-900/80 border border-white/10 focus:border-cyan-500 focus:outline-none text-white font-mono" placeholder="Konfirmasi password" required autocomplete="new-password">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" id="btnRegisterSubmit" class="btn btn-primary w-full justify-center py-2.5 text-xs font-bold tracking-wide mt-2 shadow-lg shadow-cyan-950/50 bg-emerald-600 hover:bg-emerald-500 border-emerald-500">
+            <i class="fa-solid fa-user-plus mr-1.5"></i> Daftarkan Akun PIC ke Cloud Firebase
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL GANTI PASSWORD -->
+  <div id="modalChangePassword" class="portal-modal-overlay" style="display: none;">
+    <div class="modal-card max-w-sm w-full mx-4">
+      <div class="modal-header px-5 py-3.5 border-b border-white/10 flex items-center justify-between">
+        <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-key text-cyan-400"></i>
+          <span>Ganti Password Akun</span>
+        </h3>
+        <button type="button" class="btn-icon" id="btnCloseChangePassword">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form id="formChangePassword" class="p-5 space-y-3.5">
+        <div id="changePwAlert" class="p-2.5 rounded-lg text-xs hidden"></div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Password Lama *</label>
+          <input type="password" id="changePwOld" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" required placeholder="Masukkan password lama Anda">
+        </div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Password Baru *</label>
+          <input type="password" id="changePwNew" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" required placeholder="Minimal 4 karakter">
+        </div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Konfirmasi Password Baru *</label>
+          <input type="password" id="changePwConfirm" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" required placeholder="Ulangi password baru">
+        </div>
+        <div class="pt-2 text-right flex items-center justify-end gap-2">
+          <button type="button" class="btn btn-secondary text-xs" id="btnCancelChangePassword">Batal</button>
+          <button type="submit" class="btn btn-primary text-xs" id="btnSubmitChangePassword">
+            <i class="fa-solid fa-save mr-1"></i> Simpan Password Baru
+          </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ADMIN: MODAL KELOLA AKUN PIC -->
+  <div id="modalAdminUsers" class="portal-modal-overlay" style="display: none;">
+    <div class="modal-card max-w-lg w-full mx-4">
+      <div class="modal-header px-5 py-3.5 border-b border-white/10 flex items-center justify-between">
+        <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-users-gear text-violet-400"></i>
+          <span>Kelola Akun PIC</span>
+        </h3>
+        <button type="button" class="btn-icon" id="btnCloseAdminUsers">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <!-- Tabs -->
+      <div class="flex border-b border-white/10">
+        <button id="tabResetPw" class="flex-1 py-2.5 text-xs font-semibold text-violet-300 border-b-2 border-violet-400 transition" onclick="switchAdminTab('reset')">
+          <i class="fa-solid fa-key mr-1"></i> Reset Password
+        </button>
+        <button id="tabDeleteUser" class="flex-1 py-2.5 text-xs font-semibold text-slate-400 hover:text-rose-300 transition" onclick="switchAdminTab('delete')">
+          <i class="fa-solid fa-user-minus mr-1"></i> Hapus Akun
+        </button>
+      </div>
+      <!-- Tab: Reset Password -->
+      <div id="tabPanelReset" class="p-5 space-y-3.5">
+        <div id="adminResetAlert" class="p-2.5 rounded-lg text-xs hidden"></div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Pilih Akun PIC yang Direset *</label>
+          <select id="adminResetTargetUser" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white">
+            <option value="">-- Memuat daftar akun... --</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Password Baru *</label>
+          <input type="password" id="adminResetNewPw" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" placeholder="Minimal 4 karakter">
+        </div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Konfirmasi Password Baru *</label>
+          <input type="password" id="adminResetConfirmPw" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" placeholder="Ulangi password baru">
+        </div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Password Admin (verifikasi) *</label>
+          <input type="password" id="adminResetAdminPw" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" placeholder="Password akun admin Anda">
+        </div>
+        <div class="pt-1 text-right">
+          <button type="button" id="btnSubmitAdminReset" class="btn btn-primary text-xs bg-violet-600 hover:bg-violet-500">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Reset Password
+          </button>
+        </div>
+      </div>
+      <!-- Tab: Hapus Akun -->
+      <div id="tabPanelDelete" class="p-5 space-y-3.5 hidden">
+        <div id="adminDeleteAlert" class="p-2.5 rounded-lg text-xs hidden"></div>
+        <div class="p-3 rounded-lg bg-rose-950/40 border border-rose-500/20 text-xs text-rose-300">
+          <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+          Hati-hati! Akun yang dihapus tidak dapat dipulihkan.
+        </div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Pilih Akun PIC yang Dihapus *</label>
+          <select id="adminDeleteTargetUser" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white">
+            <option value="">-- Memuat daftar akun... --</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Password Admin (verifikasi) *</label>
+          <input type="password" id="adminDeleteAdminPw" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" placeholder="Password akun admin Anda">
+        </div>
+        <div class="pt-1 text-right">
+          <button type="button" id="btnSubmitAdminDelete" class="btn text-xs bg-rose-700 hover:bg-rose-600 text-white border border-rose-500/30">
+            <i class="fa-solid fa-user-minus mr-1"></i> Hapus Akun Ini
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RIWAYAT AKTIVITAS & AUDIT LOG -->
+  <div id="modalAuditLogs" class="portal-modal-overlay" style="display: none;">
+    <div class="modal-card max-w-2xl w-full mx-4 overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="modal-header px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+            <i class="fa-solid fa-clock-rotate-left text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+              <span>Riwayat Aktivitas & Audit Log</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">Live Firestore Logs</span>
+            </h3>
+            <p class="text-xs text-slate-400">Catatan histori login, perubahan status, input data, dan aktivitas sistem</p>
+          </div>
+        </div>
+        <button type="button" class="btn-icon" id="btnCloseAuditLogs">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <div class="p-6 overflow-y-auto flex-1 space-y-3 text-xs">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <input type="text" id="auditLogSearch" class="filter-input w-full px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" placeholder="Cari aksi, user, atau aktivitas...">
+          <button id="btnRefreshAuditLogs" class="btn btn-secondary text-xs shrink-0">
+            <i class="fa-solid fa-rotate mr-1"></i> Refresh
+          </button>
+        </div>
+        <div id="auditLogTimeline" class="space-y-2.5">
+          <div class="text-center p-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat audit log dari Cloud Firestore...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL IMPORT BULK EXCEL -->
+  <div id="modalImportExcel" class="portal-modal-overlay" style="display: none;">
+    <div class="modal-card max-w-xl w-full mx-4 overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="modal-header px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+            <i class="fa-solid fa-file-import text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+              <span>Import Bulk Data dari Excel (.xlsx)</span>
+            </h3>
+            <p class="text-xs text-slate-400">Unggah file Excel untuk menambah banyak data sekaligus ke Cloud Firestore</p>
+          </div>
+        </div>
+        <button type="button" class="btn-icon" id="btnCloseImportExcel">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form id="formImportExcel" class="p-6 space-y-4 text-xs">
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Pilih Modul Target Import *</label>
+          <select id="importTargetModule" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white">
+            <option value="collo_records">Aset Colocation & Finansial (collo_records)</option>
+            <option value="sitac_records">Monitoring SITAC & Perizinan (sitac_records)</option>
+            <option value="gangguan_records">Tiket Gangguan Darurat (gangguan_records)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Pilih File Excel (.xlsx / .csv) *</label>
+          <div class="upload-dropzone p-6 text-center cursor-pointer" onclick="document.getElementById('importExcelFileInput').click()">
+            <i class="fa-solid fa-file-excel text-emerald-400 text-3xl mb-2"></i>
+            <div class="font-bold text-slate-200" id="importFileNameLabel">Klik untuk memilih file Excel (.xlsx)</div>
+            <div class="text-[11px] text-slate-400 mt-1">Mendukung format SheetJS .xlsx, .xls, .csv</div>
+          </div>
+          <input type="file" id="importExcelFileInput" accept=".xlsx,.xls,.csv" class="hidden">
+        </div>
+
+        <div id="importPreviewContainer" class="hidden space-y-2">
+          <div class="font-bold text-slate-200 text-xs flex justify-between">
+            <span>Pratinjau Data (<span id="importPreviewCount">0</span> baris ditemukan)</span>
+            <span class="text-emerald-400 font-semibold">Siap diimpor</span>
+          </div>
+          <div class="max-h-40 overflow-y-auto border border-white/10 rounded-lg p-2 bg-slate-950/40 text-[11px] font-mono text-slate-300" id="importPreviewList"></div>
+        </div>
+
+        <div id="importProgressContainer" class="hidden space-y-1">
+          <div class="flex justify-between text-[11px] text-emerald-300 font-semibold">
+            <span id="importProgressMsg">Mengimpor data...</span>
+            <span id="importProgressPct">0%</span>
+          </div>
+          <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+            <div id="importProgressBar" class="h-full bg-emerald-400 transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="pt-2 text-right flex justify-end gap-2">
+          <button type="button" class="btn btn-secondary text-xs" id="btnCancelImportExcel">Batal</button>
+          <button type="submit" class="btn btn-primary text-xs bg-emerald-600 hover:bg-emerald-500" id="btnSubmitImportExcel" disabled>
+            <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Impor Data Sekarang
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL AKSES & MANAJEMEN DATABASE (DATABASE & FIRESTORE EXPLORER) -->
+  <div id="modalDatabaseViewer" class="portal-modal-overlay" style="display: none;">
+    <div class="modal-card max-w-3xl w-full mx-4 overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="modal-header px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
+            <i class="fa-solid fa-database text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+              <span>Akses Data & Explorer Database</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30" id="dbModalStatusBadge">Google Cloud Firestore</span>
+            </h3>
+            <p class="text-xs text-slate-400">Inspeksi data pengguna, koleksi Firestore, dan manajemen akun database</p>
+          </div>
+        </div>
+        <button type="button" class="btn-icon" id="btnCloseDatabaseViewer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex border-b border-white/10 bg-slate-950/40 px-3">
+        <button id="dbTabUsers" class="db-tab-btn active" onclick="switchDbTab('users')">
+          <i class="fa-solid fa-users text-cyan-400 mr-1"></i>
+          <span>Data Pengguna</span>
+          <span class="badge-counter badge-cyan ml-1" id="dbUsersBadgeCount">0</span>
+        </button>
+        <button id="dbTabTables" class="db-tab-btn" onclick="switchDbTab('tables')">
+          <i class="fa-solid fa-table-cells text-indigo-400 mr-1"></i>
+          <span>Tabel & Statistik DB</span>
+        </button>
+        <button id="dbTabFirestore" class="db-tab-btn" onclick="switchDbTab('firestore')">
+          <i class="fa-solid fa-cloud text-amber-400 mr-1"></i>
+          <span>Cloud Firestore Sync</span>
+        </button>
+        <button id="dbTabAddUser" class="db-tab-btn" onclick="switchDbTab('adduser')">
+          <i class="fa-solid fa-user-plus text-emerald-400 mr-1"></i>
+          <span>Tambah Akun Baru</span>
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+        
+        <!-- Tab 1: Data Pengguna (Users Table) -->
+        <div id="dbTabPanelUsers" class="db-tab-panel space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <div class="relative flex-1">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400"></i>
+              <input type="text" id="dbUserSearchInput" class="filter-input w-full pl-9 pr-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" placeholder="Cari nama, username, atau PIC...">
+            </div>
+            <button id="btnRefreshDbUsers" class="btn btn-secondary text-xs" title="Refresh Data User dari Database">
+              <i class="fa-solid fa-rotate mr-1"></i> Refresh
+            </button>
+          </div>
+
+          <!-- Table Container -->
+          <div class="rounded-xl border border-white/10 overflow-hidden bg-slate-900/40">
+            <div class="max-h-80 overflow-y-auto">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-900/80 sticky top-0 text-[11px] font-semibold text-slate-300 border-b border-white/10">
+                  <tr>
+                    <th class="p-3">ID</th>
+                    <th class="p-3">Username</th>
+                    <th class="p-3">Nama Lengkap</th>
+                    <th class="p-3">Role</th>
+                    <th class="p-3">Kode PIC</th>
+                    <th class="p-3 text-center">SITAC</th>
+                    <th class="p-3 text-center">Gangguan</th>
+                    <th class="p-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="dbUserTableBody" class="divide-y divide-white/5 text-slate-200">
+                  <tr><td colspan="8" class="text-center p-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat data user dari database...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Tabel & Statistik Database -->
+        <div id="dbTabPanelTables" class="db-tab-panel hidden space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="p-4 rounded-xl bg-slate-900/60 border border-white/10">
+              <div class="text-slate-400 text-[11px]">Database File</div>
+              <div class="font-bold text-slate-100 text-sm mt-0.5" id="dbInfoFile">telecom_portal.db</div>
+              <div class="text-[10px] text-emerald-400 mt-1 font-semibold flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> Status: Active (SQLite 3)
+              </div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/60 border border-white/10">
+              <div class="text-slate-400 text-[11px]">Ukuran File Database</div>
+              <div class="font-bold text-cyan-400 text-base mt-0.5" id="dbInfoSize">2.50 MB</div>
+              <div class="text-[10px] text-slate-400 mt-1">Direct Local Storage</div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/60 border border-white/10">
+              <div class="text-slate-400 text-[11px]">Total Record Tersimpan</div>
+              <div class="font-bold text-indigo-400 text-base mt-0.5" id="dbInfoTotalRecords">1,724 Data</div>
+              <div class="text-[10px] text-slate-400 mt-1">Di 4 Tabel Utama</div>
+            </div>
+          </div>
+
+          <h4 class="font-bold text-slate-200 text-xs pt-2">Daftar Tabel Database SQLite:</h4>
+          <div id="dbTablesGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Table cards injected dynamically -->
+          </div>
+        </div>
+
+        <!-- Tab 3: Cloud Firestore Sync -->
+        <div id="dbTabPanelFirestore" class="db-tab-panel hidden space-y-4">
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-cyan-500/20 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up text-cyan-400 text-lg"></i>
+                <div>
+                  <div class="font-bold text-slate-100 text-xs">Google Cloud Firestore Database</div>
+                  <div class="text-[11px] text-slate-400">Project ID: <span class="font-mono text-cyan-300">analytics-f83f5</span></div>
+                </div>
+              </div>
+              <button id="btnTestFirestoreConn" class="btn btn-secondary text-xs">
+                <i class="fa-solid fa-plug mr-1"></i> Tes Koneksi Cloud
+              </button>
+            </div>
+
+            <div id="firestoreStatusAlert" class="p-3 rounded-lg text-xs bg-slate-950/60 border border-white/10 text-slate-300">
+              Klik "Tes Koneksi Cloud" untuk memverifikasi sambungan ke Google Firestore.
+            </div>
+
+            <div class="pt-2 border-t border-white/10 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-200 text-xs">Sinkronkan Semua Data Lokal ke Cloud</div>
+                <div class="text-[11px] text-slate-400">Unggah data SQLite ke koleksi Firestore secara otomatis</div>
+              </div>
+              <button id="btnSyncFirestore" class="btn btn-primary text-xs bg-cyan-600 hover:bg-cyan-500">
+                <i class="fa-solid fa-rotate mr-1"></i> Sinkronkan Sekarang
+              </button>
+            </div>
+            
+            <div id="syncProgressContainer" class="hidden space-y-1 pt-2">
+              <div class="flex justify-between text-[11px] text-cyan-300 font-semibold">
+                <span id="syncProgressLabel">Mengunggah data...</span>
+                <span id="syncProgressPct">0%</span>
+              </div>
+              <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+                <div id="syncProgressBar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Tambah Akun Baru -->
+        <div id="dbTabPanelAddUser" class="db-tab-panel hidden space-y-3.5">
+          <form id="formDbAddUser" class="space-y-3">
+            <div id="dbAddUserAlert" class="p-2.5 rounded-lg text-xs hidden"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Username *</label>
+                <input type="text" id="dbAddUsername" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" required placeholder="contoh: budi123">
+              </div>
+              <div>
+                <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Password *</label>
+                <input type="password" id="dbAddPassword" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" required placeholder="minimal 4 karakter">
+              </div>
+            </div>
+            <div>
+              <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Nama Lengkap Petugas *</label>
+              <input type="text" id="dbAddFullName" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" required placeholder="contoh: Budi Rodiyah">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Kode / Nama Panggilan PIC *</label>
+                <input type="text" id="dbAddPicCode" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white" placeholder="contoh: Budi (sesuai nama di laporan)">
+              </div>
+              <div>
+                <label class="form-label text-xs text-slate-300 font-semibold mb-1 block">Role / Hak Akses *</label>
+                <select id="dbAddRole" class="filter-input w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-white/10 text-white">
+                  <option value="lapangan">Tim SITAC & Lapangan (Petugas)</option>
+                  <option value="admin">Administrator / Manajemen (Full Access)</option>
+                </select>
+              </div>
+            </div>
+            <div class="pt-2 text-right">
+              <button type="submit" class="btn btn-primary text-xs bg-emerald-600 hover:bg-emerald-500">
+                <i class="fa-solid fa-user-plus mr-1"></i> Simpan & Daftarkan ke Database
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
     </div>
   </div>
 
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
 
+  <!-- Firebase SDK (compat mode for global window.firebase) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <!-- Firebase Config & Manager -->
+  <script src="firebase-config.js?v=2.5"></script>
+
   <!-- Core Portal Scripts -->
-  <script src="app.js?v=2.7"></script>
+  <script src="app.js?v=4.8"></script>
 </body>
 </html>
