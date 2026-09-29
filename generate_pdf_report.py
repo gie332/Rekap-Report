@@ -300,6 +300,75 @@ def build_pdf_report():
         textColor=colors.HexColor('#0f172a')
     )
 
+    # Dedicated KPI card styles to prevent font overlapping in ReportLab
+    kpi_title_style = ParagraphStyle(
+        'KpiTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=6.5,
+        leading=8.5,
+        textColor=colors.HexColor('#475569'),
+        spaceAfter=3
+    )
+
+    kpi_val_blue = ParagraphStyle(
+        'KpiValBlue',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=11.5,
+        leading=14,
+        textColor=colors.HexColor('#0284c7'),
+        spaceAfter=2
+    )
+
+    kpi_val_green = ParagraphStyle(
+        'KpiValGreen',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=11.5,
+        leading=14,
+        textColor=colors.HexColor('#059669'),
+        spaceAfter=2
+    )
+
+    kpi_val_amber = ParagraphStyle(
+        'KpiValAmber',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=11.5,
+        leading=14,
+        textColor=colors.HexColor('#d97706'),
+        spaceAfter=2
+    )
+
+    kpi_val_red = ParagraphStyle(
+        'KpiValRed',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=11.5,
+        leading=14,
+        textColor=colors.HexColor('#dc2626'),
+        spaceAfter=2
+    )
+
+    kpi_sub_style = ParagraphStyle(
+        'KpiSub',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=6.5,
+        leading=8.5,
+        textColor=colors.HexColor('#64748b')
+    )
+
+    kpi_sub_green = ParagraphStyle(
+        'KpiSubGreen',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=6.5,
+        leading=8.5,
+        textColor=colors.HexColor('#059669')
+    )
+
     story = []
 
     # 1. EXECUTIVE SUMMARY SECTION
@@ -315,16 +384,48 @@ def build_pdf_report():
 
     kpi_cards_data = [
         [
-            Paragraph("<b>TOTAL SIRKUIT COLOCATION</b><br/><font size=12 color='#0284c7'><b>860 Sirkuit Aktif</b></font><br/><font color='#64748b'>Total Database: 3.071 Sirkuit</font>", cell_style),
-            Paragraph(f"<b>REV SEWA (1 THN) PELANGGAN</b><br/><font size=12 color='#059669'><b>{format_rupiah_short(rev_act)}</b></font><br/><font color='#64748b'>{format_rupiah(rev_act)}</font>", cell_style),
-            Paragraph(f"<b>BIAYA OTC & BIAYA SEWA (1 THN)</b><br/><font size=12 color='#d97706'><b>{format_rupiah_short(biaya_act)}</b></font><br/><font color='#64748b'>OTC: {format_rupiah_short(otc_act)} | Sewa: {format_rupiah_short(biaya_act)}</font>", cell_style),
-            Paragraph(f"<b>GROSS PROFIT MARGIN</b><br/><font size=12 color='#0284c7'><b>{format_rupiah_short(margin_act)}</b></font><br/><font color='#059669'><b>Profit Margin: {margin_pct}%</b></font>", cell_style),
+            [
+                Paragraph("TOTAL SIRKUIT COLOCATION", kpi_title_style),
+                Paragraph("860 Sirkuit Aktif", kpi_val_blue),
+                Paragraph("Total Database: 3.071 Sirkuit", kpi_sub_style)
+            ],
+            [
+                Paragraph("REV SEWA (1 THN) PELANGGAN", kpi_title_style),
+                Paragraph(format_rupiah_short(rev_act), kpi_val_green),
+                Paragraph(format_rupiah(rev_act), kpi_sub_style)
+            ],
+            [
+                Paragraph("BIAYA OTC & BIAYA SEWA (1 THN)", kpi_title_style),
+                Paragraph(format_rupiah_short(biaya_act), kpi_val_amber),
+                Paragraph(f"OTC: {format_rupiah_short(otc_act)} | Sewa: {format_rupiah_short(biaya_act)}", kpi_sub_style)
+            ],
+            [
+                Paragraph("GROSS PROFIT MARGIN", kpi_title_style),
+                Paragraph(format_rupiah_short(margin_act), kpi_val_blue),
+                Paragraph(f"Profit Margin: {margin_pct}%", kpi_sub_green)
+            ],
         ],
         [
-            Paragraph(f"<b>STATUS PERIZINAN SITAC</b><br/><font size=12 color='#0284c7'><b>{sitac_stat['finish_count']} / {sitac_stat['total_pa']} Selesai</b></font><br/><font color='#64748b'>Finish Rate: {round(sitac_stat['finish_count']/sitac_stat['total_pa']*100, 1)}%</font>", cell_style),
-            Paragraph(f"<b>PENGHEMATAN ANGGARAN SITAC</b><br/><font size=12 color='#059669'><b>{format_rupiah_short(sitac_stat['total_efisiensi_rupiah'])}</b></font><br/><font color='#64748b'>Efisiensi Negosiasi: {round((sitac_stat['total_efisiensi_rupiah'] or 0)/(sitac_stat['total_biaya_awal'] or 1)*100, 1)}%</font>", cell_style),
-            Paragraph(f"<b>TIKET GANGGUAN DARURAT</b><br/><font size=12 color='#dc2626'><b>{gangguan_stat['selesai_count']} / {gangguan_stat['total_gangguan']} Tuntas</b></font><br/><font color='#64748b'>Total Biaya: {format_rupiah_short(gangguan_stat['total_biaya_gangguan'])}</font>", cell_style),
-            Paragraph(f"<b>REKAP TAHUNAN EFISIENSI</b><br/><font size=12 color='#0284c7'><b>2 Tahun Tercatat</b></font><br/><font color='#64748b'>2025: 41,5% | 2026: 41,7%</font>", cell_style),
+            [
+                Paragraph("STATUS PERIZINAN SITAC", kpi_title_style),
+                Paragraph(f"{sitac_stat['finish_count']} / {sitac_stat['total_pa']} Selesai", kpi_val_blue),
+                Paragraph(f"Finish Rate: {round(sitac_stat['finish_count']/sitac_stat['total_pa']*100, 1)}%", kpi_sub_style)
+            ],
+            [
+                Paragraph("PENGHEMATAN ANGGARAN SITAC", kpi_title_style),
+                Paragraph(format_rupiah_short(sitac_stat['total_efisiensi_rupiah']), kpi_val_green),
+                Paragraph(f"Efisiensi Negosiasi: {round((sitac_stat['total_efisiensi_rupiah'] or 0)/(sitac_stat['total_biaya_awal'] or 1)*100, 1)}%", kpi_sub_style)
+            ],
+            [
+                Paragraph("TIKET GANGGUAN DARURAT", kpi_title_style),
+                Paragraph(f"{gangguan_stat['selesai_count']} / {gangguan_stat['total_gangguan']} Tuntas", kpi_val_red),
+                Paragraph(f"Total Biaya: {format_rupiah_short(gangguan_stat['total_biaya_gangguan'])}", kpi_sub_style)
+            ],
+            [
+                Paragraph("REKAP TAHUNAN EFISIENSI", kpi_title_style),
+                Paragraph("2 Tahun Tercatat", kpi_val_blue),
+                Paragraph("2025: 41,5% | 2026: 41,7%", kpi_sub_style)
+            ],
         ]
     ]
 
@@ -337,6 +438,7 @@ def build_pdf_report():
         ('BOTTOMPADDING', (0,0), (-1,-1), 6),
         ('LEFTPADDING', (0,0), (-1,-1), 8),
         ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
     ]))
     story.append(kpi_table)
     story.append(Spacer(1, 4*mm))
