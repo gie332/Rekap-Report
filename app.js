@@ -895,13 +895,28 @@
     }
 
     try {
-      if (!window.FirebaseManager || !window.FirebaseManager.isConfigured()) {
-        throw new Error('Koneksi Google Firebase belum aktif.');
+      let userObj;
+      let authSource = '';
+      if (window.FirebaseManager && window.FirebaseManager.isConfigured()) {
+        userObj = await window.FirebaseManager.loginUser(usernameOrEmail, password);
+        authSource = 'Firebase';
+      } else {
+        if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> Mengautentikasi (Lokal)...';
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: usernameOrEmail, password })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Login lokal gagal');
+        }
+        const data = await res.json();
+        userObj = data.user;
+        authSource = 'Lokal';
       }
 
-      // PURE FIREBASE AUTHENTICATION (Cloud Firestore)
-      const userObj = await window.FirebaseManager.loginUser(usernameOrEmail, password);
-      const token = `fb_auth_${userObj.role}_${Date.now()}`;
+      const token = `auth_${userObj.role}_${Date.now()}`;
 
       state.currentUser = userObj;
       state.token = token;
@@ -919,7 +934,7 @@
       updateMyTasksBadges();
 
       const welcomeName = userObj.full_name || usernameOrEmail;
-      showToast(`Selamat datang, ${welcomeName}! Akses Google Firebase aktif.`, 'success');
+      showToast(`Selamat datang, ${welcomeName}! Akses ${authSource} aktif.`, 'success');
 
       if (document.getElementById('loginUsername')) document.getElementById('loginUsername').value = '';
       if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = '';
