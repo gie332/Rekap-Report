@@ -5,5 +5,10 @@
       "source": "/api/(.*)",
       "destination": "/api/index.py"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*.py": {
+      "includeFiles": "{telecom_portal.db,server.py}"
+    }
+  }
 }
