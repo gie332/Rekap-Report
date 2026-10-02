@@ -156,10 +156,21 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
                     self.handle_get_rev_sharing(query)
                 elif path == "/api/collo/expirations":
                     self.handle_get_expirations(query)
+                elif path == "/api/collo/expiring-3months":
+                    self.handle_get_expiring_3months(query)
+                elif path.startswith("/api/collo/"):
+                    rec_id = int(path.split("/")[-1])
+                    self.handle_get_single_collo(rec_id)
                 elif path == "/api/sitac":
                     self.handle_get_sitac(query)
+                elif path.startswith("/api/sitac/"):
+                    rec_id = int(path.split("/")[-1])
+                    self.handle_get_single_sitac(rec_id)
                 elif path == "/api/gangguan":
                     self.handle_get_gangguan(query)
+                elif path.startswith("/api/gangguan/"):
+                    rec_id = int(path.split("/")[-1])
+                    self.handle_get_single_gangguan(rec_id)
                 elif path == "/api/pic-performance":
                     self.handle_get_pic_performance()
                 elif path == "/api/rekap-efisiensi":
@@ -738,6 +749,39 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         }
         self.send_json(res_data)
 
+    def handle_get_single_collo(self, rec_id):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM collo_records WHERE id = ?", (rec_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            self.send_json(dict(row))
+        else:
+            self.send_error_json(f"Record with ID {rec_id} not found", 404)
+
+    def handle_get_single_sitac(self, rec_id):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM sitac_records WHERE id = ?", (rec_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            self.send_json(dict(row))
+        else:
+            self.send_error_json(f"SITAC record with ID {rec_id} not found", 404)
+
+    def handle_get_single_gangguan(self, rec_id):
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM gangguan_records WHERE id = ?", (rec_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            self.send_json(dict(row))
+        else:
+            self.send_error_json(f"Gangguan record with ID {rec_id} not found", 404)
+
     def handle_get_collo(self, q):
         conn = get_db()
         cursor = conn.cursor()
@@ -921,6 +965,70 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
                 "total": sum(counts.values())
             },
             "data": records
+        })
+
+    def handle_get_expiring_3months(self, q):
+        conn = get_db()
+        cursor = conn.cursor()
+
+        today = datetime.date.today()
+        today_str = today.isoformat()
+
+        cursor.execute("""
+            SELECT *
+            FROM collo_records
+            WHERE status = 'ACTIVE' AND end_date IS NOT NULL AND TRIM(end_date) != ''
+            ORDER BY sisa_hari ASC
+        """)
+        rows = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+
+        expiring_items = []
+        counts = {
+            "critical": 0,    # <= 30 days
+            "warning": 0,     # 31 - 90 days (1 - 3 months)
+            "expired": 0,     # <= 0 days (lewat jatuh tempo)
+            "total": 0
+        }
+
+        for r in rows:
+            ed_str = str(r['end_date']).strip()
+            try:
+                ed = datetime.date.fromisoformat(ed_str)
+                days_left = (ed - today).days
+            except Exception:
+                days_left = r['sisa_hari'] if r['sisa_hari'] is not None else 999
+
+            r['sisa_hari_actual'] = days_left
+
+            # <= 90 days represents 3 months or less
+            if days_left <= 90:
+                if days_left <= 0:
+                    r['alert_cat_calc'] = 'EXPIRED'
+                    r['alert_lbl_calc'] = 'Lewat Jatuh Tempo'
+                    r['alert_clr_calc'] = '#ef4444'
+                    counts['expired'] += 1
+                elif days_left <= 30:
+                    r['alert_cat_calc'] = 'CRITICAL'
+                    r['alert_lbl_calc'] = f"Sisa {days_left} Hari"
+                    r['alert_clr_calc'] = '#f97316'
+                    counts['critical'] += 1
+                else:
+                    r['alert_cat_calc'] = 'WARNING'
+                    r['alert_lbl_calc'] = f"Sisa {days_left} Hari"
+                    r['alert_clr_calc'] = '#eab308'
+                    counts['warning'] += 1
+
+                expiring_items.append(r)
+
+        # Sort items: expired first, then critical, then warning
+        expiring_items.sort(key=lambda x: x['sisa_hari_actual'])
+        counts['total'] = len(expiring_items)
+
+        self.send_json({
+            "today": today_str,
+            "counts": counts,
+            "items": expiring_items
         })
 
     def handle_get_sitac(self, q):
@@ -1431,12 +1539,19 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
         fields = []
         params = []
 
-        allowed_fields = ['status', 'spp', 'po_baru', 'ref_spp', 'proses_admin', 'keterangan', 'rev_sewa_tahun', 'biaya_otc', 'biaya_sewa_tahun', 'foto_bukti']
+        allowed_fields = [
+            'status', 'spp', 'po_baru', 'ref_spp', 'proses_admin', 'keterangan',
+            'rev_sewa_tahun', 'biaya_otc', 'biaya_sewa_tahun', 'foto_bukti',
+            'pengelola', 'pelanggan', 'sid', 'no_so', 'originating', 'terminating',
+            'jenis_sewa', 'layanan', 'rev_sharing_pct', 'start_date', 'end_date'
+        ]
         for f in allowed_fields:
             if f in body:
                 val = body[f]
                 if f in ['rev_sewa_tahun', 'biaya_otc', 'biaya_sewa_tahun']:
                     val = safe_int(val)
+                elif f == 'rev_sharing_pct':
+                    val = safe_float(val)
                 fields.append(f"{f} = ?")
                 params.append(val)
 
@@ -1455,6 +1570,49 @@ class TelecomPortalAPIHandler(SimpleHTTPRequestHandler):
             params.append(margin_rp)
             fields.append("margin_persen = ?")
             params.append(margin_pct)
+
+        # Recalculate revenue sharing if percentage or rev_sewa changed
+        if 'rev_sharing_pct' in body or 'rev_sewa_tahun' in body:
+            rev_sewa = safe_int(body['rev_sewa_tahun']) if 'rev_sewa_tahun' in body else cur_rec.get('rev_sewa_tahun', 0)
+            pct = safe_float(body['rev_sharing_pct']) if 'rev_sharing_pct' in body else float(cur_rec.get('rev_sharing_pct') or 0.0)
+            if pct > 0 and rev_sewa > 0:
+                biaya_sharing = int(round(rev_sewa * (pct / 100.0)))
+                fields.append("biaya_rev_sharing = ?")
+                params.append(biaya_sharing)
+                fields.append("rev_sharing_raw = ?")
+                params.append(f"{pct}%")
+
+        # Recalculate sisa_hari and alerts if end_date changed
+        if 'end_date' in body and body['end_date']:
+            try:
+                ed = datetime.date.fromisoformat(str(body['end_date']).strip())
+                sisa = (ed - datetime.date.today()).days
+                fields.append("sisa_hari = ?")
+                params.append(sisa)
+                if sisa <= 0:
+                    alert_cat = 'EXPIRED'
+                    alert_label = 'Expired / Lewat Jatuh Tempo'
+                    alert_color = '#ef4444'
+                elif sisa < 30:
+                    alert_cat = 'CRITICAL'
+                    alert_label = f"Sisa {sisa} Hari"
+                    alert_color = '#f97316'
+                elif sisa <= 60:
+                    alert_cat = 'WARNING'
+                    alert_label = f"Sisa {sisa} Hari"
+                    alert_color = '#eab308'
+                else:
+                    alert_cat = 'SAFE'
+                    alert_label = f"Sisa {sisa} Hari"
+                    alert_color = '#10b981'
+                fields.append("alert_category = ?")
+                params.append(alert_cat)
+                fields.append("alert_label = ?")
+                params.append(alert_label)
+                fields.append("alert_color = ?")
+                params.append(alert_color)
+            except Exception:
+                pass
 
         if not fields:
             conn.close()

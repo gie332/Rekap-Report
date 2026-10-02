@@ -97,18 +97,18 @@
   // ── PREMIUM CHART THEME ────────────────────────────────────────────────────
   // Custom palette aligned with the portal's color system
   const CHART_PALETTE = {
-    cyan:    '#06b6d4',
-    mint:    '#10b981',
-    amber:   '#f59e0b',
-    rose:    '#f43f5e',
-    indigo:  '#6366f1',
-    violet:  '#8b5cf6',
-    orange:  '#f97316',
-    sky:     '#38bdf8',
+    cyan:    '#2A9D8F', // Clearwave Mint Teal
+    mint:    '#10b981', // Clearwave Emerald
+    amber:   '#e9c46a', // Clearwave Ochre / Sand
+    rose:    '#e76f51', // Clearwave Terracotta / Coral
+    indigo:  '#1A7A6E', // Clearwave Forest Teal
+    violet:  '#5BBFB5', // Clearwave Light Seafoam
+    orange:  '#d4a373', // Clearwave Desert Gold
+    sky:     '#48d5c1', // Clearwave Bright Mint
     lime:    '#84cc16',
-    pink:    '#ec4899',
+    pink:    '#e07a5f',
   };
-  const PALETTE_ORDER = ['cyan','mint','amber','indigo','rose','violet','orange','sky','lime','pink'];
+  const PALETTE_ORDER = ['cyan','amber','violet','rose','indigo','mint','orange','sky','lime','pink'];
   const getPaletteColors = (n) => PALETTE_ORDER.slice(0, n).map(k => CHART_PALETTE[k]);
 
   // Build a canvas gradient for line/area charts
@@ -126,15 +126,15 @@
 
   const getChartTheme = () => {
     const isDark = state.theme === 'dark';
-    const textColor      = isDark ? '#94a3b8' : '#334155';
-    const titleColor     = isDark ? '#e2e8f0' : '#0e1f2e';
-    const gridColor      = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(36,91,118,0.07)';
-    const tooltipBg      = isDark ? 'rgba(10,18,32,0.94)' : 'rgba(255,255,255,0.97)';
-    const tooltipBorder  = isDark ? 'rgba(6,182,212,0.35)' : 'rgba(36,91,118,0.18)';
-    const tooltipText    = isDark ? '#f1f5f9' : '#0e1f2e';
+    const textColor      = isDark ? '#8baaa5' : '#3A5C58';
+    const titleColor     = isDark ? '#f4fafa' : '#0D1E1C';
+    const gridColor      = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(13,30,28,0.06)';
+    const tooltipBg      = isDark ? 'rgba(14,30,27,0.96)' : 'rgba(255,255,255,0.98)';
+    const tooltipBorder  = isDark ? 'rgba(42,157,143,0.4)' : 'rgba(26,122,110,0.2)';
+    const tooltipText    = isDark ? '#f4fafa' : '#0D1E1C';
 
     // Global Chart.js defaults — set once per theme switch
-    Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+    Chart.defaults.font.family = "'DM Sans', sans-serif";
     Chart.defaults.font.size   = 11;
     Chart.defaults.color       = textColor;
     Chart.defaults.plugins.tooltip.backgroundColor   = tooltipBg;
@@ -178,6 +178,132 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  };
+
+  const formatPelangganCell = (rawPelanggan) => {
+    if (!rawPelanggan || rawPelanggan === '-') {
+      return '<span class="text-slate-400">-</span>';
+    }
+
+    // Split by newline or semicolon
+    const rawItems = String(rawPelanggan)
+      .split(/[\r\n]+/)
+      .map(s => s.trim().replace(/^\d+[\.\)]\s*/, ''))
+      .filter(s => s.length > 0);
+
+    if (rawItems.length === 0) {
+      return '<span class="text-slate-400">-</span>';
+    }
+
+    // Group and deduplicate items while preserving original case of first occurrence
+    const map = new Map();
+    rawItems.forEach(item => {
+      const key = item.toUpperCase().replace(/\s+/g, ' ');
+      if (!map.has(key)) {
+        map.set(key, { name: item, count: 0 });
+      }
+      map.get(key).count++;
+    });
+
+    const uniqueEntries = Array.from(map.values());
+    const totalTenants = uniqueEntries.length;
+    const firstTenant = uniqueEntries[0];
+
+    const fullTooltip = uniqueEntries.map((item, i) => `${i + 1}. ${item.name}${item.count > 1 ? ` (${item.count}×)` : ''}`).join('\n');
+
+    if (totalTenants === 1 && rawItems.length === 1) {
+      return `
+        <div class="tenant-primary-name" title="${escapeHtml(firstTenant.name)}">
+          ${escapeHtml(firstTenant.name)}
+        </div>
+      `;
+    }
+
+    const remainingCount = totalTenants - 1;
+    const badgeText = remainingCount > 0 
+      ? `+${remainingCount} lainnya` 
+      : `${rawItems.length}× link`;
+
+    const popoverPayload = encodeURIComponent(JSON.stringify({
+      title: `Daftar Pelanggan (${totalTenants} Tenant)`,
+      icon: 'fa-users',
+      items: uniqueEntries.map(e => ({ name: e.name, badge: e.count > 1 ? `${e.count} link` : null }))
+    }));
+
+    return `
+      <div class="tenant-cell" title="${escapeHtml(fullTooltip)}">
+        <span class="tenant-primary-name" title="${escapeHtml(firstTenant.name)}">
+          ${escapeHtml(firstTenant.name)}
+        </span>
+        <button type="button" class="tenant-badge cursor-pointer" data-popover="${popoverPayload}" title="Klik untuk rincian ${remainingCount > 0 ? remainingCount + ' pelanggan lainnya' : ''}">
+          ${escapeHtml(badgeText)}
+        </button>
+      </div>
+    `;
+  };
+
+  const formatSoCell = (sid, noSo) => {
+    // 1. Process SID (dedup & compact multiline SID)
+    const rawSid = String(sid || '')
+      .split(/[\r\n]+/)
+      .map(s => s.trim().replace(/^['`]/, ''))
+      .filter(Boolean);
+    const primarySid = rawSid[0] || '';
+    const remainingSidCount = rawSid.length - 1;
+
+    let sidHtml = '';
+    if (primarySid) {
+      if (rawSid.length <= 1) {
+        sidHtml = `<div class="font-mono text-cyan-400 text-xs max-w-[140px] truncate" title="${escapeHtml(primarySid)}">${escapeHtml(primarySid)}</div>`;
+      } else {
+        const sidTooltip = rawSid.map((s, i) => `${i + 1}. ${s}`).join('\n');
+        const sidPopoverPayload = encodeURIComponent(JSON.stringify({
+          title: `Daftar SID (${rawSid.length} SID)`,
+          icon: 'fa-network-wired',
+          items: rawSid.map(s => ({ name: s, badge: null }))
+        }));
+        sidHtml = `
+          <div class="flex items-center gap-1" title="${escapeHtml(sidTooltip)}">
+            <span class="font-mono text-cyan-400 text-xs max-w-[95px] truncate" title="${escapeHtml(primarySid)}">${escapeHtml(primarySid)}</span>
+            <button type="button" class="tenant-badge text-[9px] py-0 px-1 cursor-pointer text-cyan-300 border-cyan-500/40" data-popover="${sidPopoverPayload}" title="Klik untuk rincian ${remainingSidCount} SID lainnya">
+              +${remainingSidCount} lainnya
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // 2. Process Nomor SO
+    const rawSo = String(noSo || '')
+      .split(/[\r\n]+/)
+      .map(s => s.trim().replace(/^\d+[\.\)]\s*/, ''))
+      .filter(Boolean);
+    const primarySo = rawSo[0] || (primarySid ? '-' : '-');
+    
+    if (rawSo.length <= 1) {
+      return `
+        ${sidHtml}
+        <div class="text-[11px] text-slate-500 max-w-[140px] truncate" title="${escapeHtml(primarySo)}">${escapeHtml(primarySo)}</div>
+      `;
+    }
+
+    const fullTooltip = rawSo.map((s, i) => `${i + 1}. ${s}`).join('\n');
+    const remainingCount = rawSo.length - 1;
+    const popoverPayload = encodeURIComponent(JSON.stringify({
+      title: `Daftar Nomor SO (${rawSo.length} SO)`,
+      icon: 'fa-file-lines',
+      items: rawSo.map(s => ({ name: s, badge: null }))
+    }));
+
+    return `
+      ${sidHtml}
+      <div class="flex items-center gap-1" title="${escapeHtml(fullTooltip)}">
+        <span class="text-[11px] text-slate-500 max-w-[95px] truncate" title="${escapeHtml(primarySo)}">${escapeHtml(primarySo)}</span>
+        <button type="button" class="tenant-badge text-[9px] py-0 px-1 cursor-pointer" data-popover="${popoverPayload}" title="Klik untuk rincian ${remainingCount} SO lainnya">
+          +${remainingCount} lainnya
+        </button>
+      </div>
+    `;
   };
 
   const computeRowspanMap = (records, key = 'pengelola') => {
@@ -268,6 +394,284 @@
     await loadMetaOptions();
     await loadRegisteredPicChips();
     initAuth();
+    initContractAlertSystem();
+  }
+
+  // =========================================================================
+  // CONTRACT EXPIRATION ALERT SYSTEM (≤ 3 BULAN & DAILY NOTIFICATION)
+  // =========================================================================
+  let contractAlertData = {
+    counts: { total: 0, critical: 0, warning: 0, expired: 0 },
+    items: [],
+    activeFilter: 'ALL'
+  };
+
+  async function fetchExpiringContracts(silent = false) {
+    try {
+      const res = await fetch('/api/collo/expiring-3months');
+      if (!res.ok) throw new Error('API Error');
+      const data = await res.json();
+      contractAlertData.counts = data.counts || { total: 0, critical: 0, warning: 0, expired: 0 };
+      contractAlertData.items = data.items || [];
+      updateContractAlertUI();
+      checkDailyContractAlertNotification(silent);
+    } catch (e) {
+      console.error('Failed to load contract expiration alerts:', e);
+    }
+  }
+
+  function updateContractAlertUI() {
+    const { counts } = contractAlertData;
+    const bellBadge = document.getElementById('contractAlertBellBadge');
+    const bellIcon = document.getElementById('contractBellIcon');
+    const panelCount = document.getElementById('panelAlertBadgeCount');
+    const tabAll = document.getElementById('tabCountAll');
+    const tabCrit = document.getElementById('tabCountCritical');
+    const tabWarn = document.getElementById('tabCountWarning');
+    const tabExp = document.getElementById('tabCountExpired');
+
+    if (panelCount) panelCount.textContent = counts.total || 0;
+    if (tabAll) tabAll.textContent = counts.total || 0;
+    if (tabCrit) tabCrit.textContent = counts.critical || 0;
+    if (tabWarn) tabWarn.textContent = counts.warning || 0;
+    if (tabExp) tabExp.textContent = counts.expired || 0;
+
+    if (counts.total > 0) {
+      if (bellBadge) {
+        bellBadge.textContent = counts.total > 99 ? '99+' : counts.total;
+        bellBadge.classList.remove('hidden');
+      }
+      if (bellIcon) {
+        bellIcon.classList.add('bell-ring-active');
+      }
+    } else {
+      if (bellBadge) bellBadge.classList.add('hidden');
+      if (bellIcon) bellIcon.classList.remove('bell-ring-active');
+    }
+
+    renderContractAlertItems();
+  }
+
+  function renderContractAlertItems() {
+    const list = document.getElementById('alertNotificationList');
+    if (!list) return;
+
+    let items = contractAlertData.items || [];
+    const filter = contractAlertData.activeFilter;
+    if (filter === 'CRITICAL') {
+      items = items.filter(x => x.alert_cat_calc === 'CRITICAL');
+    } else if (filter === 'WARNING') {
+      items = items.filter(x => x.alert_cat_calc === 'WARNING');
+    } else if (filter === 'EXPIRED') {
+      items = items.filter(x => x.alert_cat_calc === 'EXPIRED');
+    }
+
+    if (items.length === 0) {
+      list.innerHTML = `
+        <div class="p-6 text-center text-xs text-emerald-400">
+          <i class="fa-solid fa-circle-check text-2xl mb-2 block text-emerald-400"></i>
+          <span class="font-bold">Semua Kontrak Aman!</span>
+          <div class="text-[10px] text-slate-400 mt-0.5">Tidak ada kontrak kategori ini yang perlu diperbaharui.</div>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = items.slice(0, 100).map(item => {
+      let badgeBg = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+      if (item.alert_cat_calc === 'EXPIRED') badgeBg = 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+      else if (item.alert_cat_calc === 'CRITICAL') badgeBg = 'bg-orange-500/15 text-orange-400 border-orange-500/30';
+
+      const sisaDays = item.sisa_hari_actual;
+      const sisaLabel = sisaDays <= 0 ? 'Lewat Jatuh Tempo' : `Sisa ${sisaDays} Hari`;
+
+      return `
+        <div class="alert-panel-item flex items-center justify-between gap-3 text-xs">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="font-bold text-slate-100 truncate text-[11px]">${escapeHtml(item.pelanggan || 'Pelanggan')}</span>
+              <span class="px-1.5 py-0.2 rounded text-[9px] font-bold border ${badgeBg} whitespace-nowrap shrink-0">
+                ${sisaLabel}
+              </span>
+            </div>
+            <div class="text-[10px] text-slate-400 flex items-center gap-2">
+              <span class="text-cyan-400 font-semibold truncate max-w-[130px]">${escapeHtml(item.pengelola || '-')}</span>
+              <span>•</span>
+              <span class="font-mono text-slate-300">Tgl: ${item.end_date || '-'}</span>
+            </div>
+            ${item.sid ? `<div class="text-[9px] font-mono text-slate-500 mt-0.5">SID: ${escapeHtml(item.sid)}</div>` : ''}
+          </div>
+          <button type="button" class="btn btn-primary text-[10px] py-1 px-2.5 rounded-lg shrink-0 font-bold btn-renew-contract-quick" data-id="${item.id}" title="Perbaharui masa sewa / nomor PO kontrak ini">
+            <i class="fa-solid fa-pen-to-square mr-1"></i> Perbaharui
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Wire Perbaharui buttons to open quick edit modal
+    list.querySelectorAll('.btn-renew-contract-quick').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        // Close dropdown
+        const panel = document.getElementById('contractAlertNotificationPanel');
+        const bellBtn = document.getElementById('btnContractAlertBell');
+        if (panel) panel.classList.add('hidden');
+        if (bellBtn) bellBtn.classList.remove('active');
+
+        // Open quick edit modal for this contract
+        openQuickEditModal('collo', id);
+      });
+    });
+  }
+
+  function checkDailyContractAlertNotification(silent = false) {
+    const { counts } = contractAlertData;
+    if (counts.total <= 0) {
+      const banner = document.getElementById('dailyContractAlertBanner');
+      if (banner) {
+        banner.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+        banner.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+      }
+      return;
+    }
+
+    if (silent) return;
+
+    // Check if dismissed TODAY
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const lastDismissed = localStorage.getItem('telecom_portal_alert_dismissed_date');
+
+    // Daily notification popup until all contracts are renewed
+    if (lastDismissed !== todayStr) {
+      const banner = document.getElementById('dailyContractAlertBanner');
+      const countEl = document.getElementById('dailyBannerCount');
+      if (countEl) countEl.textContent = counts.total;
+      if (banner) {
+        setTimeout(() => {
+          banner.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+          banner.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        }, 1200);
+      }
+
+      // Also trigger browser desktop notification if permitted
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('🔔 Peringatan Jatuh Tempo Kontrak (≤ 3 Bulan)', {
+            body: `Terdapat ${counts.total} kontrak sirkuit yang belum diperbaharui hari ini (${todayStr}). Harap lakukan perpanjangan sewa!`,
+            icon: '/favicon.ico'
+          });
+        } catch (e) {}
+      }
+    }
+  }
+
+  function setupContractAlertEventListeners() {
+    const bellBtn = document.getElementById('btnContractAlertBell');
+    const bellPanel = document.getElementById('contractAlertNotificationPanel');
+    const closePanelBtn = document.getElementById('btnCloseAlertPanel');
+    const goToFullAlerts = document.getElementById('btnGoToFullAlerts');
+
+    // Bell toggle click
+    if (bellBtn && bellPanel) {
+      bellBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Close other dropdowns
+        document.getElementById('exportGroupMenu')?.classList.add('hidden');
+        document.getElementById('btnToggleExportMenu')?.classList.remove('active');
+        document.getElementById('toolsGroupMenu')?.classList.add('hidden');
+        document.getElementById('btnToggleToolsMenu')?.classList.remove('active');
+
+        const isHidden = bellPanel.classList.contains('hidden');
+        if (isHidden) {
+          bellPanel.classList.remove('hidden');
+          bellBtn.classList.add('active');
+        } else {
+          bellPanel.classList.add('hidden');
+          bellBtn.classList.remove('active');
+        }
+      });
+    }
+
+    if (closePanelBtn && bellPanel) {
+      closePanelBtn.addEventListener('click', () => {
+        bellPanel.classList.add('hidden');
+        bellBtn?.classList.remove('active');
+      });
+    }
+
+    // Tabs inside notification panel
+    document.querySelectorAll('.alert-panel-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.alert-panel-tab').forEach(t => {
+          t.classList.remove('active', 'text-cyan-400', 'bg-cyan-500/10', 'border', 'border-cyan-500/20');
+          t.classList.add('text-slate-400');
+        });
+        tab.classList.add('active', 'text-cyan-400', 'bg-cyan-500/10', 'border', 'border-cyan-500/20');
+        tab.classList.remove('text-slate-400');
+        contractAlertData.activeFilter = tab.getAttribute('data-filter') || 'ALL';
+        renderContractAlertItems();
+      });
+    });
+
+    // Go to full alerts page
+    if (goToFullAlerts) {
+      goToFullAlerts.addEventListener('click', () => {
+        bellPanel?.classList.add('hidden');
+        bellBtn?.classList.remove('active');
+        switchView('view-collo-alerts');
+      });
+    }
+
+    // Daily Banner events
+    const banner = document.getElementById('dailyContractAlertBanner');
+    const btnDismissToday = document.getElementById('btnDailyBannerDismissToday');
+    const btnCloseDaily = document.getElementById('btnCloseDailyBanner');
+    const btnOpenList = document.getElementById('btnDailyBannerOpenList');
+
+    const dismissBannerForToday = () => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      localStorage.setItem('telecom_portal_alert_dismissed_date', todayStr);
+      if (banner) {
+        banner.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+        banner.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+      }
+      showToast('Peringatan ditunda hingga besok.', 'info');
+    };
+
+    if (btnDismissToday) btnDismissToday.addEventListener('click', dismissBannerForToday);
+    if (btnCloseDaily) btnCloseDaily.addEventListener('click', dismissBannerForToday);
+
+    if (btnOpenList) {
+      btnOpenList.addEventListener('click', () => {
+        if (banner) {
+          banner.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+          banner.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        }
+        bellBtn?.click();
+      });
+    }
+
+    // Close panel on outside click
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('contractAlertBellContainer');
+      if (container && !container.contains(e.target)) {
+        bellPanel?.classList.add('hidden');
+        bellBtn?.classList.remove('active');
+      }
+    });
+
+    // Request notification permission if supported
+    if ('Notification' in window && Notification.permission === 'default') {
+      setTimeout(() => {
+        try { Notification.requestPermission(); } catch (e) {}
+      }, 5000);
+    }
+  }
+
+  function initContractAlertSystem() {
+    setupContractAlertEventListeners();
+    fetchExpiringContracts();
   }
 
   // --- AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC) ---
@@ -389,16 +793,20 @@
     const avatarBox = document.getElementById('userRoleAvatar');
 
     if (nameDisplay) {
-      nameDisplay.textContent = state.currentUser?.full_name || (isLapangan ? 'Tim SITAC & Lapangan' : 'Administrator');
+      const rawName = state.currentUser?.full_name || (isLapangan ? 'Tim Lapangan' : 'Administrator');
+      // Strip parenthetical text like "(Manajemen)" to display cleanly without overflow
+      const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+      nameDisplay.textContent = cleanName;
+      nameDisplay.title = `${rawName} (${isLapangan ? 'Lapangan' : 'Admin'})`;
     }
     if (roleDisplay) {
       if (isLapangan) {
         const pic = state.currentUser?.pic_code || state.activeTechnician;
-        roleDisplay.textContent = pic ? `TEKNISI PIC (${pic.toUpperCase()})` : 'TIM LAPANGAN (SITAC)';
-        roleDisplay.className = 'text-[9px] uppercase tracking-wider text-emerald-400 font-semibold';
+        roleDisplay.textContent = pic ? `PIC: ${pic.toUpperCase()}` : 'TEKNISI';
+        roleDisplay.className = 'text-[8px] uppercase tracking-wider text-emerald-400 font-semibold leading-none mt-0.5';
       } else {
-        roleDisplay.textContent = 'MANAJEMEN / ADMIN';
-        roleDisplay.className = 'text-[9px] uppercase tracking-wider text-cyan-400 font-semibold';
+        roleDisplay.textContent = 'ADMIN';
+        roleDisplay.className = 'text-[8px] uppercase tracking-wider text-cyan-400 font-semibold leading-none mt-0.5';
       }
     }
     if (avatarIcon) {
@@ -543,7 +951,7 @@
     document.documentElement.setAttribute('data-theme', state.theme);
     const icon = document.querySelector('#themeToggleBtn i');
     if (icon) {
-      icon.className = state.theme === 'light' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      icon.className = state.theme === 'light' ? 'fa-solid fa-sun text-base' : 'fa-solid fa-moon text-base';
     }
   }
 
@@ -686,10 +1094,38 @@
       const bGangguan = document.getElementById('badgeNavGangguan');
       if (bGangguan) bGangguan.textContent = Number(g.total_gangguan || 393).toLocaleString('id-ID');
 
-      // Update Power BI Radial Gauges
+      // Update Power BI Radial Gauges & Bento Controls
+      const totalCollo = Number(c.total_records || 2243);
+      const actCollo = Number(c.active_count || 880);
+      const deactCollo = Number(c.deactivasi_count || 285);
+      const otherCollo = Math.max(0, totalCollo - actCollo - deactCollo);
+      if (document.getElementById('execHistColloTotal')) {
+        document.getElementById('execHistColloTotal').textContent = totalCollo.toLocaleString('id-ID');
+      }
+      if (totalCollo > 0) {
+        const segAct = document.getElementById('bentoColloActiveSegment');
+        const segDeact = document.getElementById('bentoColloDeactSegment');
+        const segOther = document.getElementById('bentoColloOtherSegment');
+        if (segAct) segAct.style.width = `${((actCollo / totalCollo) * 100).toFixed(1)}%`;
+        if (segDeact) segDeact.style.width = `${((deactCollo / totalCollo) * 100).toFixed(1)}%`;
+        if (segOther) segOther.style.width = `${((otherCollo / totalCollo) * 100).toFixed(1)}%`;
+      }
+
       const sitacRate = (s.total_pa > 0) ? (s.finish_count / s.total_pa * 100).toFixed(1) : 0;
       if (document.getElementById('gaugeSitacRate')) document.getElementById('gaugeSitacRate').textContent = `${sitacRate}%`;
       if (document.getElementById('gaugeSitacBar')) document.getElementById('gaugeSitacBar').style.width = `${sitacRate}%`;
+
+      // SITAC Mini SVG Radial Ring
+      const radialCirc = document.getElementById('radialSitacCircle');
+      if (radialCirc) {
+        const pct = Math.min(100, Math.max(0, parseFloat(sitacRate) || 0));
+        const offset = (113.1 - (113.1 * pct / 100)).toFixed(1);
+        radialCirc.style.strokeDashoffset = offset;
+      }
+      const radialTxt = document.getElementById('radialSitacPercent');
+      if (radialTxt) {
+        radialTxt.textContent = `${Math.round(parseFloat(sitacRate) || 0)}%`;
+      }
 
       const savingsRate = s.efisiensi_pct || 0;
       if (document.getElementById('gaugeSavingsRate')) document.getElementById('gaugeSavingsRate').textContent = `${savingsRate}%`;
@@ -702,6 +1138,9 @@
       const resRate = g.resolution_rate || 0;
       if (document.getElementById('gaugeGangguanRate')) document.getElementById('gaugeGangguanRate').textContent = `${resRate}%`;
       if (document.getElementById('gaugeGangguanBar')) document.getElementById('gaugeGangguanBar').style.width = `${resRate}%`;
+      if (document.getElementById('execGangguanOpenBadge')) {
+        document.getElementById('execGangguanOpenBadge').textContent = `${g.aktif_count || 0} Open`;
+      }
 
       // Render Charts
       renderExecutiveCharts(data);
@@ -735,18 +1174,18 @@
             {
               label: 'Biaya Sewa Mitra',
               data: topP.map(p => p.total_biaya),
-              backgroundColor: 'rgba(245,158,11,0.80)',
-              hoverBackgroundColor: 'rgba(245,158,11,1)',
-              borderRadius: 6,
+              backgroundColor: 'rgba(233, 196, 106, 0.85)',
+              hoverBackgroundColor: 'rgba(233, 196, 106, 1)',
+              borderRadius: 8,
               borderSkipped: false,
               barPercentage: 0.72,
             },
             {
               label: 'Revenue Sewa',
               data: topP.map(p => p.total_rev),
-              backgroundColor: 'rgba(6,182,212,0.80)',
-              hoverBackgroundColor: 'rgba(6,182,212,1)',
-              borderRadius: 6,
+              backgroundColor: 'rgba(42, 157, 143, 0.85)',
+              hoverBackgroundColor: 'rgba(42, 157, 143, 1)',
+              borderRadius: 8,
               borderSkipped: false,
               barPercentage: 0.72,
             }
@@ -781,8 +1220,8 @@
           labels: ['Finish', 'Ongoing', 'Hold', 'Cancel'],
           datasets: [{
             data: [s.finish_count || 373, s.ongoing_count || 10, s.hold_count || 5, s.cancel_count || 63],
-            backgroundColor: ['#10b981', '#06b6d4', '#f59e0b', '#f43f5e'],
-            hoverBackgroundColor: ['#34d399', '#22d3ee', '#fbbf24', '#fb7185'],
+            backgroundColor: ['#2A9D8F', '#5BBFB5', '#E9C46A', '#E76F51'],
+            hoverBackgroundColor: ['#34b5a5', '#6ecec4', '#f1cf7a', '#ed7e62'],
             borderWidth: 3,
             borderColor: 'transparent',
             hoverBorderColor: 'transparent',
@@ -807,8 +1246,8 @@
       destroyChart('jenisSewa');
       const jd = data.jenis_sewa_dist || [];
       const totalCnt = jd.reduce((a, c) => a + c.cnt, 0);
-      const bgColors = ['#06b6d4','#10b981','#6366f1','#f59e0b','#ec4899','#8b5cf6'];
-      const hoverColors = ['#22d3ee','#34d399','#818cf8','#fbbf24','#f472b6','#a78bfa'];
+      const bgColors = ['#2A9D8F', '#E9C46A', '#5BBFB5', '#E76F51', '#1A7A6E', '#D4A373'];
+      const hoverColors = ['#34b5a5', '#f1cf7a', '#6ecec4', '#ed7e62', '#229184', '#e2b385'];
       charts.jenisSewa = new Chart(ctxJenis, {
         type: 'doughnut',
         data: {
@@ -839,19 +1278,19 @@
     if (ctxExp) {
       destroyChart('expirationDonut');
       const ed = data.expiration_dist || [];
-      const cMap = { CRITICAL:'#f43f5e', WARNING:'#f59e0b', SAFE:'#10b981', EXPIRED:'#64748b' };
-      const hMap = { CRITICAL:'#fb7185', WARNING:'#fbbf24', SAFE:'#34d399', EXPIRED:'#94a3b8' };
+      const cMap = { CRITICAL:'#f43f5e', WARNING:'#f59e0b', SAFE:'#10b981', EXPIRED:'#7c3aed' };
+      const hMap = { CRITICAL:'#fb7185', WARNING:'#fbbf24', SAFE:'#34d399', EXPIRED:'#a855f7' };
       charts.expirationDonut = new Chart(ctxExp, {
         type: 'doughnut',
         data: {
           labels: ed.map(e => e.alert_category),
           datasets: [{
             data: ed.map(e => e.cnt),
-            backgroundColor: ed.map(e => cMap[e.alert_category] || '#94a3b8'),
-            hoverBackgroundColor: ed.map(e => hMap[e.alert_category] || '#cbd5e1'),
+            backgroundColor: ed.map(e => cMap[e.alert_category] || '#7c3aed'),
+            hoverBackgroundColor: ed.map(e => hMap[e.alert_category] || '#a855f7'),
             borderWidth: 3,
             borderColor: 'transparent',
-            hoverOffset: 6,
+            hoverOffset: 8,
           }]
         },
         options: {
@@ -859,7 +1298,15 @@
           maintainAspectRatio: false,
           cutout: '72%',
           plugins: {
-            legend: { position: 'bottom', labels: { padding: 12 } },
+            legend: {
+              position: 'bottom',
+              labels: {
+                padding: 14,
+                usePointStyle: true,
+                pointStyle: 'circle',
+                font: { size: 11, weight: '600' }
+              }
+            },
             tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} Sirkuit` } }
           }
         }
@@ -871,7 +1318,7 @@
     if (ctxTrend) {
       destroyChart('monthlyTrend');
       const trend = data.monthly_trend || [];
-      const gradCyan = makeGradient(ctxTrend, '#06b6d4', 0.55, 0.02);
+      const gradCyan = makeGradient(ctxTrend, '#2A9D8F', 0.55, 0.02);
       const gradMint = makeGradient(ctxTrend, '#10b981', 0.25, 0.01);
       charts.monthlyTrend = new Chart(ctxTrend, {
         type: 'bar',
@@ -883,7 +1330,7 @@
               label: 'Penugasan Masuk',
               data: trend.map(t => t.count_masuk),
               backgroundColor: gradCyan,
-              hoverBackgroundColor: 'rgba(6,182,212,0.9)',
+              hoverBackgroundColor: 'rgba(42, 157, 143, 0.95)',
               borderRadius: 7,
               borderSkipped: false,
               barPercentage: 0.65,
@@ -1017,14 +1464,14 @@
       destroyChart('colloStatusDist');
       const dist = state.execData.collo_status_dist || [];
       const total = dist.reduce((acc, curr) => acc + curr.cnt, 0);
-      const colorMap = { 'ACTIVE': '#10b981', 'NON ACTIVE': '#64748b', 'DEACTIVASI': '#ef4444' };
+      const colorMap = { 'ACTIVE': '#2A9D8F', 'NON ACTIVE': '#6B8C88', 'DEACTIVASI': '#E76F51' };
       charts.colloStatusDist = new Chart(ctxStat, {
         type: 'doughnut',
         data: {
           labels: dist.map(d => d.status),
           datasets: [{
             data: dist.map(d => d.cnt),
-            backgroundColor: dist.map(d => colorMap[d.status] || '#06b6d4'),
+            backgroundColor: dist.map(d => colorMap[d.status] || '#2A9D8F'),
             borderWidth: 0
           }]
         },
@@ -1056,8 +1503,9 @@
           datasets: [{
             label: 'Jumlah Sirkuit Aktif',
             data: vendors.map(v => v.sirkuit_count),
-            backgroundColor: 'rgba(6, 182, 212, 0.8)',
-            borderRadius: 4
+            backgroundColor: 'rgba(42, 157, 143, 0.85)',
+            hoverBackgroundColor: 'rgba(42, 157, 143, 1)',
+            borderRadius: 8
           }]
         },
         options: {
@@ -1106,11 +1554,8 @@
         <tr>
           <td class="font-mono text-xs text-slate-500">${rowIdx}</td>
           ${pengelolaTd}
-          <td>${escapeHtml(c.pelanggan || '-')}</td>
-          <td>
-            <div class="font-mono text-cyan-400 text-xs">${escapeHtml(c.sid || '-')}</div>
-            <div class="text-[11px] text-slate-500">${escapeHtml(c.no_so || '-')}</div>
-          </td>
+          <td>${formatPelangganCell(c.pelanggan)}</td>
+          <td>${formatSoCell(c.sid, c.no_so)}</td>
           <td class="max-w-[200px] truncate" title="${escapeHtml(c.terminating)}">${escapeHtml(c.terminating || c.originating || '-')}</td>
           <td><span class="badge-pill bg-slate-800 text-slate-300">${escapeHtml(c.jenis_sewa || 'Colocation')}</span></td>
           <td class="text-right font-mono font-bold text-emerald-400">${formatRupiah(c.rev_sewa_tahun)}</td>
@@ -1121,6 +1566,7 @@
           <td class="text-center">
             <div class="flex items-center justify-center gap-1.5">
               <button class="btn-action btn-view-detail" data-type="collo" data-id="${c.id}" title="Lihat Detail"><i class="fa-solid fa-eye text-cyan-400"></i></button>
+              <button class="btn-action btn-quick-edit" data-type="collo" data-id="${c.id}" title="Edit Data Sirkuit"><i class="fa-solid fa-pen-to-square"></i></button>
               <button class="btn-action btn-delete-row text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/40" data-type="collo" data-id="${c.id}" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
             </div>
           </td>
@@ -1186,8 +1632,8 @@
             <tr>
               <td class="text-xs text-slate-500">${idx + 1}</td>
               ${pengelolaTd}
-              <td>${escapeHtml(c.pelanggan)}</td>
-              <td class="font-mono text-xs text-cyan-400">${escapeHtml(c.no_so || c.sid || '-')}</td>
+              <td>${formatPelangganCell(c.pelanggan)}</td>
+              <td>${formatSoCell(c.sid, c.no_so)}</td>
               <td class="max-w-[180px] truncate" title="${escapeHtml(c.terminating)}">${escapeHtml(c.terminating || '-')}</td>
               <td class="text-right font-mono text-emerald-400">${formatRupiah(c.rev_sewa_tahun)}</td>
               <td class="text-center font-mono font-bold text-amber-400 bg-amber-500/10 rounded">${escapeHtml(c.rev_sharing_raw || `${roundPct(c.rev_sharing_pct)}%`)}</td>
@@ -1196,6 +1642,7 @@
               <td class="text-center">
                 <div class="flex items-center justify-center gap-1.5">
                   <button class="btn-action btn-view-detail" data-type="collo" data-id="${c.id}" title="Lihat Detail"><i class="fa-solid fa-eye text-cyan-400"></i></button>
+                  <button class="btn-action btn-quick-edit" data-type="collo" data-id="${c.id}" title="Edit Data Sirkuit"><i class="fa-solid fa-pen-to-square"></i></button>
                   <button class="btn-action btn-delete-row text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/40" data-type="collo" data-id="${c.id}" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
               </td>
@@ -1226,7 +1673,7 @@
           labels: top7.map(m => m.pengelola.length > 16 ? m.pengelola.slice(0, 16) + '...' : m.pengelola),
           datasets: [{
             data: top7.map(m => m.total_rev),
-            backgroundColor: ['#06b6d4', '#10b981', '#f59e0b', '#6366f1', '#ec4899', '#8b5cf6', '#14b8a6'],
+            backgroundColor: ['#2A9D8F', '#e9c46a', '#5BBFB5', '#1A7A6E', '#e76f51', '#d4a373', '#10b981'],
             borderWidth: 0
           }]
         },
@@ -1258,14 +1705,14 @@
             {
               label: 'Revenue Pelanggan',
               data: top7.map(m => m.total_rev),
-              backgroundColor: 'rgba(16, 185, 129, 0.85)',
-              borderRadius: 4
+              backgroundColor: 'rgba(42, 157, 143, 0.85)',
+              borderRadius: 6
             },
             {
               label: 'Biaya Bagi Hasil Mitra',
               data: top7.map(m => m.total_sharing),
-              backgroundColor: 'rgba(6, 182, 212, 0.85)',
-              borderRadius: 4
+              backgroundColor: 'rgba(233, 196, 106, 0.85)',
+              borderRadius: 6
             }
           ]
         },
@@ -1335,8 +1782,8 @@
             <tr>
               <td class="text-xs text-slate-500">${idx + 1}</td>
               ${pengelolaTd}
-              <td>${escapeHtml(c.pelanggan)}</td>
-              <td class="font-mono text-xs text-cyan-400">${escapeHtml(c.sid || c.no_so || '-')}</td>
+              <td>${formatPelangganCell(c.pelanggan)}</td>
+              <td>${formatSoCell(c.sid, c.no_so)}</td>
               <td>${c.end_date || '-'}</td>
               <td class="text-center font-bold font-mono">${c.sisa_hari} Hari</td>
               <td class="text-center">${getAlertBadge(c.alert_category, c.sisa_hari)}</td>
@@ -1346,6 +1793,7 @@
               <td class="text-center">
                 <div class="flex items-center justify-center gap-1.5">
                   <button class="btn-action btn-view-detail" data-type="collo" data-id="${c.id}" title="Lihat Detail"><i class="fa-solid fa-eye text-cyan-400"></i></button>
+                  <button class="btn-action btn-quick-edit" data-type="collo" data-id="${c.id}" title="Edit Data Sirkuit"><i class="fa-solid fa-pen-to-square"></i></button>
                   <button class="btn-action btn-delete-row text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/40" data-type="collo" data-id="${c.id}" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
               </td>
@@ -1475,7 +1923,7 @@
             <tr>
               <td class="font-mono text-xs text-slate-500">${rowIdx}</td>
               <td class="font-mono font-bold text-cyan-400 text-xs">${escapeHtml(s.no_pa || '-')}</td>
-              <td><strong>${escapeHtml(s.pelanggan || '-')}</strong></td>
+              <td>${formatPelangganCell(s.pelanggan)}</td>
               <td>${escapeHtml(s.pic_perijinan || '-')}</td>
               <td class="max-w-[200px] truncate" title="${escapeHtml(s.terminating)}">${escapeHtml(s.terminating || '-')}</td>
               <td class="text-right font-mono">${formatRupiah(s.biaya_permintaan_awal)}</td>
@@ -1487,6 +1935,7 @@
               <td class="text-center">
                 <div class="flex items-center justify-center gap-1.5">
                   <button class="btn-action btn-view-detail" data-type="sitac" data-id="${s.id}" title="Lihat Detail"><i class="fa-solid fa-eye text-cyan-400"></i></button>
+                  <button class="btn-action btn-quick-edit" data-type="sitac" data-id="${s.id}" title="Edit Data SITAC"><i class="fa-solid fa-pen-to-square"></i></button>
                   <button class="btn-action btn-delete-row text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/40" data-type="sitac" data-id="${s.id}" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
               </td>
@@ -1594,7 +2043,7 @@
       if (currentStatus === 'ALL') {
         labels = ['Finish', 'Ongoing', 'Hold', 'Cancel'];
         data = [sc.Finish || 0, sc.Ongoing || 0, sc.Hold || 0, sc.Cancel || 0];
-        bgColors = ['#10b981', '#06b6d4', '#eab308', '#ef4444'];
+        bgColors = ['#2A9D8F', '#5BBFB5', '#E9C46A', '#E76F51'];
         if (statusBadge) {
           statusBadge.textContent = `Total ${sc.ALL || 451} PA`;
           statusBadge.className = 'pbi-visual-badge';
@@ -1602,7 +2051,7 @@
       } else if (currentStatus === 'Finish') {
         labels = ['Finish'];
         data = [sc.Finish || 0];
-        bgColors = ['#10b981'];
+        bgColors = ['#2A9D8F'];
         if (statusBadge) {
           statusBadge.textContent = `Finish: ${sc.Finish || 0} PA`;
           statusBadge.className = 'pbi-visual-badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
@@ -1610,7 +2059,7 @@
       } else if (currentStatus === 'Ongoing') {
         labels = ['Ongoing'];
         data = [sc.Ongoing || 0];
-        bgColors = ['#06b6d4'];
+        bgColors = ['#5BBFB5'];
         if (statusBadge) {
           statusBadge.textContent = `Ongoing: ${sc.Ongoing || 0} PA`;
           statusBadge.className = 'pbi-visual-badge bg-cyan-500/20 text-cyan-400 border border-cyan-500/30';
@@ -1773,6 +2222,7 @@
                 <td class="text-center">
                   <div class="flex items-center justify-center gap-1.5">
                     <button class="btn-action btn-view-detail" data-type="gangguan" data-id="${g.id}" title="Lihat Detail"><i class="fa-solid fa-eye text-cyan-400"></i></button>
+                    <button class="btn-action btn-quick-edit" data-type="gangguan" data-id="${g.id}" title="Edit Data Gangguan"><i class="fa-solid fa-pen-to-square"></i></button>
                     <button class="btn-action btn-delete-row text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/40" data-type="gangguan" data-id="${g.id}" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
                   </div>
                 </td>
@@ -1963,8 +2413,8 @@
             {
               label: 'Nominal Penghematan',
               data: rows.map(r => r.efisiensi_rupiah),
-              backgroundColor: 'rgba(6, 182, 212, 0.85)',
-              borderRadius: 4
+              backgroundColor: 'rgba(42, 157, 143, 0.85)',
+              borderRadius: 6
             }
           ]
         },
@@ -2083,14 +2533,14 @@
             {
               label: 'Penugasan Perizinan (PA)',
               data: rows.map(p => p.total_penugasan),
-              backgroundColor: 'rgba(6, 182, 212, 0.85)',
-              borderRadius: 4
+              backgroundColor: 'rgba(42, 157, 143, 0.85)',
+              borderRadius: 6
             },
             {
               label: 'Tiket Gangguan Lapangan',
               data: rows.map(p => p.gangguan_count),
-              backgroundColor: 'rgba(245, 158, 11, 0.85)',
-              borderRadius: 4
+              backgroundColor: 'rgba(233, 196, 106, 0.85)',
+              borderRadius: 6
             }
           ]
         },
@@ -2343,51 +2793,198 @@
     document.getElementById('quickEditTargetId').value = id;
 
     if (type === 'collo') {
-      const rec = state.collo.data.find(c => c.id == id) || (state.alerts.data || []).find(c => c.id == id) || (state.revSharing.data || []).find(c => c.id == id) || {};
-      title.textContent = `Update Sirkuit Colocation #${id}`;
-      sub.textContent = 'Perbarui status sirkuit, nilai sewa, nomor SPP, atau catatan admin';
+      let rec = (contractAlertData?.items || []).find(c => c.id == id) ||
+                (state.collo?.data || []).find(c => c.id == id) ||
+                (state.alerts?.data || []).find(c => c.id == id) ||
+                (state.revSharing?.data || []).find(c => c.id == id) || {};
+      const firstPel = (rec.pelanggan || '').split(/[\r\n]+/)[0]?.replace(/^\d+[\.\)]\s*/, '') || 'Colocation';
+      title.textContent = `Edit Data Link #${id} - ${firstPel}`;
+      sub.textContent = 'Perbarui identitas sirkuit, nilai finansial sewa, status, dan data administrasi';
       container.innerHTML = `
-        <div>
-          <label class="form-label">Status Sirkuit *</label>
-          <select name="status" class="filter-select w-full text-xs">
-            <option value="ACTIVE" ${rec.status === 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
-            <option value="NON ACTIVE" ${rec.status === 'NON ACTIVE' ? 'selected' : ''}>NON ACTIVE</option>
-            <option value="DEACTIVASI" ${rec.status === 'DEACTIVASI' ? 'selected' : ''}>DEACTIVASI</option>
-          </select>
+        <!-- Section 1: Identitas Sirkuit & Pelanggan -->
+        <div class="p-4 bg-slate-900/60 rounded-xl border border-cyan-500/20 space-y-3.5 shadow-sm">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+            <i class="fa-solid fa-network-wired"></i>
+            <span>Identitas Sirkuit & Pelanggan</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Pengelola / Mitra Datacenter *</label>
+              <input type="text" name="pengelola" class="filter-input w-full text-xs font-semibold" value="${escapeHtml(rec.pengelola || '')}" required placeholder="Contoh: NTT, APJII, dll">
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Nama Pelanggan *</label>
+              <input type="text" name="pelanggan" class="filter-input w-full text-xs font-semibold text-slate-100" value="${escapeHtml(rec.pelanggan || '')}" required placeholder="Nama Pelanggan">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">SID Sirkuit</label>
+              <input type="text" name="sid" class="filter-input w-full text-xs font-mono text-cyan-400" value="${escapeHtml(rec.sid || '')}" placeholder="Contoh: 100234">
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Nomor SO</label>
+              <input type="text" name="no_so" class="filter-input w-full text-xs font-mono" value="${escapeHtml(rec.no_so || '')}" placeholder="Contoh: AR/ACT/...">
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Jenis Sewa / Layanan</label>
+              <select name="jenis_sewa" class="filter-select w-full text-xs font-medium">
+                <option value="Colocation" ${rec.jenis_sewa === 'Colocation' ? 'selected' : ''}>Colocation</option>
+                <option value="Revenue Sharing" ${rec.jenis_sewa === 'Revenue Sharing' ? 'selected' : ''}>Revenue Sharing</option>
+                <option value="Interkoneksi" ${rec.jenis_sewa === 'Interkoneksi' ? 'selected' : ''}>Interkoneksi</option>
+                <option value="Rack Space" ${rec.jenis_sewa === 'Rack Space' ? 'selected' : ''}>Rack Space</option>
+                <option value="Cross Connect" ${rec.jenis_sewa === 'Cross Connect' ? 'selected' : ''}>Cross Connect</option>
+                <option value="Space Tower" ${rec.jenis_sewa === 'Space Tower' ? 'selected' : ''}>Space Tower</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Originating (Lokasi Asal)</label>
+              <input type="text" name="originating" class="filter-input w-full text-xs" value="${escapeHtml(rec.originating || '')}" placeholder="Lokasi asal...">
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Terminating (Lokasi Tujuan)</label>
+              <input type="text" name="terminating" class="filter-input w-full text-xs" value="${escapeHtml(rec.terminating || '')}" placeholder="Lokasi tujuan...">
+            </div>
+          </div>
         </div>
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="form-label">Rev Sewa (1 Thn) (Rp)</label>
-            <input type="number" name="rev_sewa_tahun" class="filter-input w-full text-xs" value="${rec.rev_sewa_tahun || 0}">
+
+        <!-- Section 2: Finansial & Skema Biaya -->
+        <div class="p-4 bg-slate-900/60 rounded-xl border border-emerald-500/20 space-y-3.5 shadow-sm">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center justify-between">
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-coins"></i> Nilai Finansial & Skema Biaya</span>
+            <span class="text-[10px] text-slate-400 font-normal">Kalkulasi Margin Otomatis</span>
           </div>
-          <div>
-            <label class="form-label">Biaya OTC (Rp)</label>
-            <input type="number" name="biaya_otc" class="filter-input w-full text-xs" value="${rec.biaya_otc || 0}">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Rev Sewa (1 Thn) (Rp)</label>
+              <input type="number" name="rev_sewa_tahun" id="quickEditRevSewa" class="filter-input w-full text-xs font-mono font-bold text-emerald-400" value="${rec.rev_sewa_tahun || 0}">
+              <span class="text-[11px] text-emerald-400 font-mono font-semibold block mt-1" id="previewQuickEditRev">${formatRupiah(rec.rev_sewa_tahun || 0)}</span>
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Biaya OTC (Rp)</label>
+              <input type="number" name="biaya_otc" id="quickEditBiayaOtc" class="filter-input w-full text-xs font-mono text-purple-400 font-semibold" value="${rec.biaya_otc || 0}">
+              <span class="text-[11px] text-purple-400 font-mono font-semibold block mt-1" id="previewQuickEditOtc">${formatRupiah(rec.biaya_otc || 0)}</span>
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Biaya Sewa 1 Tahun (Rp)</label>
+              <input type="number" name="biaya_sewa_tahun" id="quickEditBiayaSewa" class="filter-input w-full text-xs font-mono text-amber-400 font-semibold" value="${rec.biaya_sewa_tahun || 0}">
+              <span class="text-[11px] text-amber-400 font-mono font-semibold block mt-1" id="previewQuickEditBiaya">${formatRupiah(rec.biaya_sewa_tahun || 0)}</span>
+            </div>
           </div>
-          <div>
-            <label class="form-label">Biaya Sewa 1 Tahun (Rp)</label>
-            <input type="number" name="biaya_sewa_tahun" class="filter-input w-full text-xs" value="${rec.biaya_sewa_tahun || 0}">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Rev Sharing (%)</label>
+              <input type="number" step="0.01" name="rev_sharing_pct" class="filter-input w-full text-xs font-mono" value="${rec.rev_sharing_pct || 0}" placeholder="20">
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Status Sirkuit *</label>
+              <select name="status" class="filter-select w-full text-xs font-bold">
+                <option value="ACTIVE" ${rec.status === 'ACTIVE' ? 'selected' : ''}>🟢 ACTIVE</option>
+                <option value="NON ACTIVE" ${rec.status === 'NON ACTIVE' ? 'selected' : ''}>⚪ NON ACTIVE</option>
+                <option value="DEACTIVASI" ${rec.status === 'DEACTIVASI' ? 'selected' : ''}>🔴 DEACTIVASI</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label text-slate-400 text-xs mb-1 block">Estimasi Gross Margin</label>
+              <div class="h-[38px] px-3 bg-slate-950/80 rounded-xl border border-cyan-500/25 flex items-center justify-between">
+                <span class="text-[10px] text-slate-400">Margin:</span>
+                <span class="font-mono font-bold text-cyan-400 text-xs" id="previewQuickEditMargin">${formatRupiah(rec.margin_rupiah || 0)} (${rec.margin_persen || 0}%)</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="form-label">Nomor SPP</label>
-            <input type="text" name="spp" class="filter-input w-full text-xs" value="${escapeHtml(rec.spp || '')}" placeholder="Nomor SPP">
+
+        <!-- Section 3: Administrasi & Kontrak -->
+        <div class="p-4 bg-slate-900/60 rounded-xl border border-amber-500/20 space-y-3.5 shadow-sm">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+            <i class="fa-solid fa-file-contract"></i>
+            <span>Administrasi, Kontrak & Catatan</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Tanggal Mulai Kontrak</label>
+              <input type="date" name="start_date" class="filter-input w-full text-xs" value="${rec.start_date || ''}">
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Tanggal Jatuh Tempo</label>
+              <input type="date" name="end_date" class="filter-input w-full text-xs" value="${rec.end_date || ''}">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Nomor SPP</label>
+              <input type="text" name="spp" class="filter-input w-full text-xs font-mono" value="${escapeHtml(rec.spp || '')}" placeholder="Nomor SPP">
+            </div>
+            <div>
+              <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Nomor PO Baru</label>
+              <input type="text" name="po_baru" class="filter-input w-full text-xs font-mono" value="${escapeHtml(rec.po_baru || '')}" placeholder="Nomor PO">
+            </div>
           </div>
           <div>
-            <label class="form-label">Nomor PO Baru</label>
-            <input type="text" name="po_baru" class="filter-input w-full text-xs" value="${escapeHtml(rec.po_baru || '')}" placeholder="Nomor PO">
+            <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Status Proses Admin</label>
+            <input type="text" name="proses_admin" class="filter-input w-full text-xs" value="${escapeHtml(rec.proses_admin || '')}" placeholder="Contoh: Proses SPP / Running">
           </div>
-        </div>
-        <div>
-          <label class="form-label">Status Proses Admin</label>
-          <input type="text" name="proses_admin" class="filter-input w-full text-xs" value="${escapeHtml(rec.proses_admin || '')}" placeholder="Contoh: Proses SPP / Running">
-        </div>
-        <div>
-          <label class="form-label">Catatan Keterangan</label>
-          <textarea name="keterangan" rows="2" class="filter-input w-full text-xs" placeholder="Catatan...">${escapeHtml(rec.keterangan || '')}</textarea>
+          <div>
+            <label class="form-label text-slate-300 font-medium text-xs mb-1 block">Catatan Keterangan</label>
+            <textarea name="keterangan" rows="2" class="filter-input w-full text-xs" placeholder="Catatan kontrak / rekanan...">${escapeHtml(rec.keterangan || '')}</textarea>
+          </div>
         </div>
       `;
+
+      // Wire live currency previews & auto margin calculation
+      const inRev = document.getElementById('quickEditRevSewa');
+      const inOtc = document.getElementById('quickEditBiayaOtc');
+      const inBiaya = document.getElementById('quickEditBiayaSewa');
+      const inMargin = document.getElementById('previewQuickEditMargin');
+
+      const updateLivePreviews = () => {
+        const rev = parseInt(inRev?.value || '0', 10) || 0;
+        const otc = parseInt(inOtc?.value || '0', 10) || 0;
+        const biaya = parseInt(inBiaya?.value || '0', 10) || 0;
+        const margin = rev - biaya;
+        const pct = rev > 0 ? ((margin / rev) * 100).toFixed(1) : '0.0';
+
+        const pRev = document.getElementById('previewQuickEditRev');
+        if (pRev) pRev.textContent = formatRupiah(rev);
+        const pOtc = document.getElementById('previewQuickEditOtc');
+        if (pOtc) pOtc.textContent = formatRupiah(otc);
+        const pBiaya = document.getElementById('previewQuickEditBiaya');
+        if (pBiaya) pBiaya.textContent = formatRupiah(biaya);
+        if (inMargin) inMargin.textContent = `${formatRupiah(margin)} (${pct}%)`;
+      };
+
+      [inRev, inOtc, inBiaya].forEach(input => {
+        input?.addEventListener('input', updateLivePreviews);
+      });
+
+      // Asynchronously fetch complete single record from backend to guarantee 100% fresh data
+      fetch(`/api/collo/${id}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(freshRec => {
+          if (!freshRec) return;
+          if (document.getElementById('quickEditTargetId')?.value != id) return;
+          const f = document.getElementById('formQuickEdit');
+          if (!f) return;
+          const fields = [
+            'pengelola', 'pelanggan', 'sid', 'no_so', 'jenis_sewa', 'originating', 'terminating',
+            'rev_sewa_tahun', 'biaya_otc', 'biaya_sewa_tahun', 'rev_sharing_pct', 'status',
+            'start_date', 'end_date', 'spp', 'po_baru', 'proses_admin', 'keterangan'
+          ];
+          fields.forEach(field => {
+            const input = f.elements[field];
+            if (input && (input.value === '' || input.value === '0' || !input.matches(':focus'))) {
+              if (freshRec[field] !== undefined && freshRec[field] !== null) {
+                input.value = freshRec[field];
+              }
+            }
+          });
+          updateLivePreviews();
+          const firstPel = (freshRec.pelanggan || '').split(/[\r\n]+/)[0]?.replace(/^\d+[\.\)]\s*/, '') || 'Colocation';
+          title.textContent = `Edit Data Link #${id} - ${firstPel}`;
+        })
+        .catch(err => console.warn('Could not fetch single collo:', err));
     } else if (type === 'sitac') {
       const rec = (state.sitac.data || []).find(s => s.id == id) || {};
       title.textContent = `Update Penugasan SITAC #${id}`;
@@ -2483,7 +3080,7 @@
     const formData = new FormData(form);
     const payload = {};
     formData.forEach((val, key) => {
-      if (val !== '') payload[key] = val;
+      payload[key] = typeof val === 'string' ? val.trim() : val;
     });
 
     const fileInput = document.getElementById('quickEditFotoInput');
@@ -2522,6 +3119,14 @@
         showToast(data.message || 'Perubahan berhasil disimpan ke database!');
         document.getElementById('modalQuickEdit').style.display = 'none';
 
+        // Background sync to Google Cloud Firestore if online
+        if (window.TelecomFirebase && typeof window.TelecomFirebase.firestoreUpdateRecord === 'function') {
+          const colName = type === 'collo' ? 'collo_records' : (type === 'sitac' ? 'sitac_records' : 'gangguan_records');
+          window.TelecomFirebase.firestoreUpdateRecord(colName, String(id), payload).catch(err => {
+            console.warn('Firestore async sync notice:', err);
+          });
+        }
+
         // Refresh active table
         if (state.activeView === 'view-collo-list') await loadColloData();
         else if (state.activeView === 'view-collo-alerts') await loadAlertsData();
@@ -2529,6 +3134,11 @@
         else if (state.activeView === 'view-sitac-pa') await loadSitacData();
         else if (state.activeView === 'view-gangguan') await loadGangguanData();
         else if (state.activeView === 'view-executive') await loadExecutiveSummary();
+
+        // Refresh contract alert bell & counts if collo record was updated
+        if (type === 'collo') {
+          fetchExpiringContracts(true);
+        }
       } else {
         alert(data.message || 'Gagal menyimpan perubahan');
       }
@@ -2841,8 +3451,38 @@
       const rec = state.collo.data.find(c => c.id == id) || (state.alerts.data || []).find(c => c.id == id) || (state.revSharing.data || []).find(c => c.id == id);
       if (!rec) return;
 
-      title.textContent = `${rec.pengelola} - ${rec.pelanggan}`;
-      sub.textContent = `SID: ${rec.sid || '-'} | NO SO: ${rec.no_so || '-'}`;
+      const allPelangganList = (rec.pelanggan || '').split(/[\r\n]+/).map(s => s.trim().replace(/^\d+[\.\)]\s*/, '')).filter(Boolean);
+      const firstPel = allPelangganList[0] || 'Colocation';
+      const allSos = String(rec.no_so || '').split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+      const firstSo = allSos[0] || '-';
+      const soDisplay = allSos.length > 1 ? `${firstSo} (+${allSos.length - 1} SO)` : firstSo;
+      sub.textContent = `SID: ${rec.sid || '-'} | NO SO: ${soDisplay}`;
+
+      let pelangganDetailHtml = '';
+      if (allPelangganList.length > 1) {
+        const pCounts = {};
+        allPelangganList.forEach(p => { pCounts[p] = (pCounts[p] || 0) + 1; });
+        pelangganDetailHtml = `
+          <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2">
+            <span class="text-slate-500 uppercase block mb-1.5 font-bold text-[10px]">Daftar Pelanggan / Tenant (${allPelangganList.length} Entri &bull; ${Object.keys(pCounts).length} Tenant Unik)</span>
+            <div class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+              ${Object.entries(pCounts).map(([name, count]) => `
+                <span class="badge-pill bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-[11px]">
+                  ${escapeHtml(name)} ${count > 1 ? `<strong class="text-cyan-300">(${count}×)</strong>` : ''}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else {
+        pelangganDetailHtml = `
+          <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2">
+            <span class="text-slate-500 uppercase block text-[10px] font-bold">Pelanggan</span>
+            <span class="font-bold text-slate-100">${escapeHtml(rec.pelanggan || '-')}</span>
+          </div>
+        `;
+      }
+
       content.innerHTML = `
         <div class="grid grid-cols-3 gap-3 text-xs mb-3">
           <div class="p-3 bg-emerald-950/30 rounded-lg border border-emerald-500/20">
@@ -2863,6 +3503,7 @@
           <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Layanan / Jenis</span><span class="font-bold text-sm text-slate-100">${escapeHtml(rec.layanan || rec.jenis_sewa || '-')}</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Margin (Rev - Biaya)</span><span class="font-bold text-cyan-400 font-mono">${formatRupiah(rec.margin_rupiah)} (${rec.margin_persen}%)</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Rev Sharing</span><span class="font-bold text-amber-400 font-mono">${escapeHtml(rec.rev_sharing_raw || '-')}</span></div>
+          ${pelangganDetailHtml}
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Masa Berlaku</span><span class="font-mono text-slate-200">${rec.start_date || '-'} s/d ${rec.end_date || '-'} (Sisa ${rec.sisa_hari} Hari)</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Originating / Terminating</span><span class="text-slate-200">${escapeHtml(rec.originating || '-')} &rarr; ${escapeHtml(rec.terminating || '-')}</span></div>
           <div class="p-2.5 bg-slate-900 rounded border border-white/5 col-span-2"><span class="text-slate-500 uppercase block">Admin & Kontak</span><span class="text-slate-200">PIC Admin: ${escapeHtml(rec.pic_admin || '-')} | Rekanan: ${escapeHtml(rec.pic_rekanan || '-')} (${escapeHtml(rec.telp || '-')})</span></div>
@@ -2874,8 +3515,9 @@
       const rec = state.sitac.data.find(s => s.id == id);
       if (!rec) return;
 
+      const firstSitacPel = (rec.pelanggan || '').split(/[\r\n]+/)[0]?.replace(/^\d+[\.\)]\s*/, '') || '-';
       title.textContent = `Penugasan PA: ${rec.no_pa || '-'}`;
-      sub.textContent = `${rec.pelanggan || '-'}`;
+      sub.textContent = `${firstSitacPel}`;
       content.innerHTML = `
         <div class="grid grid-cols-2 gap-3 text-xs">
           <div class="p-2.5 bg-slate-900 rounded border border-white/5"><span class="text-slate-500 uppercase block">Status</span><span class="font-bold text-sm text-slate-100">${escapeHtml(rec.progress)}</span></div>
@@ -4137,8 +4779,8 @@
       const email = document.getElementById('regEmail')?.value.trim().toLowerCase() || `${username}@telecom.ops`;
       const picSelect = document.getElementById('regPicCode');
       let picCode = picSelect ? picSelect.value : '';
-      if (picCode === 'Custom') {
-        picCode = fullName.split(' ')[0];
+      if (!picCode || picCode === 'Custom') {
+        picCode = fullName ? fullName.split(' ')[0] : username;
       }
       const password = document.getElementById('regPassword')?.value;
       const passwordConfirm = document.getElementById('regPasswordConfirm')?.value;
@@ -4505,23 +5147,97 @@
       });
     });
 
-    // 1c. Mobile Sidebar Toggle Button
+    // 1c. Mobile Sidebar Toggle Button & Clearwave FAB
     document.getElementById('sidebarToggleBtn')?.addEventListener('click', () => {
       document.getElementById('portalSidebar')?.classList.toggle('mobile-open');
     });
+    document.getElementById('clearwaveFloatingFab')?.addEventListener('click', () => {
+      const sidebar = document.getElementById('portalSidebar');
+      if (window.innerWidth < 1024 && sidebar) {
+        sidebar.classList.toggle('mobile-open');
+      } else {
+        const bodyEl = document.querySelector('.portal-content-body') || window;
+        bodyEl.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
 
-    // 2. Theme Toggle
-    document.getElementById('themeToggleBtn').addEventListener('click', () => {
-      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    // 2. Theme Toggle (Supports both sidebar button and topbar segmented switcher)
+    const applyThemeChange = (newTheme) => {
+      state.theme = newTheme;
       localStorage.setItem('portal_theme', state.theme);
       initTheme();
       if (state.activeView === 'view-executive') loadExecutiveSummary();
+      else if (state.activeView === 'view-collo-list') loadColloData();
+      else if (state.activeView === 'view-collo-revshare') loadRevSharingData();
+      else if (state.activeView === 'view-collo-renewal') loadAlertsData();
+      else if (state.activeView === 'view-sitac-pa') loadSitacData();
+      else if (state.activeView === 'view-gangguan') loadGangguanData();
+      else if (state.activeView === 'view-efisiensi') loadEfisiensiData();
+      else if (state.activeView === 'view-pic-workload') loadPicWorkloadData();
       if (leafletMap) {
         leafletMap.remove();
         leafletMap = null;
         initWebgisMap();
       }
+    };
+
+    document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+      applyThemeChange(state.theme === 'dark' ? 'light' : 'dark');
     });
+
+
+    // 2b. DayNight Segmented Quick Period Pills
+    const quickPeriodPills = document.querySelectorAll('#execPeriodQuickPills .exec-period-pill');
+    const periodSelect = document.getElementById('execFilterPeriod');
+
+    quickPeriodPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const pVal = pill.getAttribute('data-period');
+        quickPeriodPills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        if (periodSelect && periodSelect.value !== pVal) {
+          periodSelect.value = pVal;
+          periodSelect.dispatchEvent(new Event('change'));
+        }
+      });
+    });
+
+    periodSelect?.addEventListener('change', () => {
+      const currentVal = periodSelect.value;
+      quickPeriodPills.forEach(p => {
+        p.classList.toggle('active', p.getAttribute('data-period') === currentVal);
+      });
+    });
+
+    // 2c. Executive Greeting Helper
+    const updateExecutiveGreeting = () => {
+      const greetingTitleEl = document.getElementById('execGreetingTitle');
+      const dateEl = document.getElementById('execCurrentDateDisplay');
+      const hour = new Date().getHours();
+      let salam = 'Selamat Datang,';
+      if (hour >= 4 && hour < 11) salam = 'Selamat Pagi,';
+      else if (hour >= 11 && hour < 15) salam = 'Selamat Siang,';
+      else if (hour >= 15 && hour < 18) salam = 'Selamat Sore,';
+      else salam = 'Selamat Malam,';
+
+      const userName = state.currentUser?.username || 'Administrator';
+      if (greetingTitleEl) {
+        greetingTitleEl.innerHTML = `${salam} <span class="text-cyan-500 font-bold" id="execGreetingName">${userName}</span> 👋`;
+      }
+      if (dateEl) {
+        try {
+          dateEl.textContent = new Date().toLocaleDateString('id-ID', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          });
+        } catch (e) {
+          dateEl.textContent = new Date().toDateString();
+        }
+      }
+    };
+    updateExecutiveGreeting();
 
     // 3. Quick Export Buttons & Dropdowns
     document.getElementById('btnExportExcel')?.addEventListener('click', () => exportCurrentViewExcel());
@@ -4643,15 +5359,41 @@
       loadColloData();
     });
 
+    // Helper to scroll table smoothly to top on pagination / page change
+    function scrollTableToTop(cardSelector) {
+      const card = document.querySelector(cardSelector);
+      const scrollContainer = document.querySelector('.portal-content-body');
+      if (card && scrollContainer) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        const targetScroll = scrollContainer.scrollTop + (cardRect.top - containerRect.top) - 16;
+        scrollContainer.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: 'smooth'
+        });
+      } else if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
     document.getElementById('colloPrevPageBtn')?.addEventListener('click', () => {
       if (state.collo.page > 1) {
         state.collo.page--;
-        loadColloData();
+        scrollTableToTop('#view-collo-list .table-container-card');
+        loadColloData().then(() => {
+          scrollTableToTop('#view-collo-list .table-container-card');
+        });
       }
     });
+
     document.getElementById('colloNextPageBtn')?.addEventListener('click', () => {
       state.collo.page++;
-      loadColloData();
+      scrollTableToTop('#view-collo-list .table-container-card');
+      loadColloData().then(() => {
+        scrollTableToTop('#view-collo-list .table-container-card');
+      });
     });
 
     // 5. View 3 (Rev Sharing) Controls
@@ -4725,12 +5467,18 @@
     document.getElementById('sitacPrevPageBtn')?.addEventListener('click', () => {
       if (state.sitac.page > 1) {
         state.sitac.page--;
-        loadSitacData();
+        scrollTableToTop('#view-sitac-pa .table-container-card');
+        loadSitacData().then(() => {
+          scrollTableToTop('#view-sitac-pa .table-container-card');
+        });
       }
     });
     document.getElementById('sitacNextPageBtn')?.addEventListener('click', () => {
       state.sitac.page++;
-      loadSitacData();
+      scrollTableToTop('#view-sitac-pa .table-container-card');
+      loadSitacData().then(() => {
+        scrollTableToTop('#view-sitac-pa .table-container-card');
+      });
     });
 
     // 8. View 6 (Gangguan) Controls & Date Filtering
@@ -4903,6 +5651,7 @@
         const type = editBtn.getAttribute('data-type');
         const id = editBtn.getAttribute('data-id');
         openQuickEditModal(type, id);
+        return;
       }
 
       const detailBtn = e.target.closest('.btn-view-detail');
@@ -4918,6 +5667,102 @@
         const id = deleteBtn.getAttribute('data-id');
         deleteRecord(type, id);
       }
+    });
+
+    // 10c. Interactive Multi-Value Popover (+N Lainnya / Solusi 1)
+    const tenantPopover = document.getElementById('tenantPopover');
+    const popoverTitle = document.getElementById('tenantPopoverTitle');
+    const popoverIcon = document.getElementById('tenantPopoverIcon');
+    const popoverBody = document.getElementById('tenantPopoverBody');
+    const btnPopoverClose = document.getElementById('btnTenantPopoverClose');
+    let activePopoverBtn = null;
+
+    const closePopover = () => {
+      if (tenantPopover) {
+        tenantPopover.classList.add('hidden');
+        tenantPopover.style.display = 'none';
+        activePopoverBtn = null;
+      }
+    };
+
+    btnPopoverClose?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closePopover();
+    });
+
+    document.addEventListener('click', (e) => {
+      const popoverTrigger = e.target.closest('[data-popover]');
+      if (popoverTrigger) {
+        e.stopPropagation();
+
+        // If clicking the same trigger button that's already open, toggle close
+        if (activePopoverBtn === popoverTrigger && tenantPopover && !tenantPopover.classList.contains('hidden')) {
+          closePopover();
+          return;
+        }
+
+        try {
+          const raw = popoverTrigger.getAttribute('data-popover');
+          const data = JSON.parse(decodeURIComponent(raw));
+          
+          if (popoverTitle) popoverTitle.textContent = data.title || 'Daftar Lengkap';
+          if (popoverIcon) {
+            popoverIcon.className = `fa-solid ${data.icon || 'fa-users'} text-cyan-400 text-xs`;
+          }
+          if (popoverBody) {
+            popoverBody.innerHTML = (data.items || []).map((item, idx) => `
+              <div class="popover-tenant-item">
+                <div class="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+                  <span class="popover-item-num">${idx + 1}.</span>
+                  <span class="popover-item-text font-medium truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+                </div>
+                ${item.badge ? `<span class="badge-pill bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-[10px] whitespace-nowrap flex-shrink-0 font-bold">${escapeHtml(item.badge)}</span>` : ''}
+              </div>
+            `).join('');
+          }
+
+          // Positioning near the button
+          const rect = popoverTrigger.getBoundingClientRect();
+          const popoverWidth = 330;
+          const popoverHeight = 280;
+          
+          let top = rect.bottom + 6;
+          let left = rect.left;
+
+          // Check right boundary
+          if (left + popoverWidth > window.innerWidth - 16) {
+            left = Math.max(16, window.innerWidth - popoverWidth - 16);
+          }
+          if (left < 16) left = 16;
+
+          // Check bottom boundary: if bottom overflows, flip to show above the button
+          if (top + popoverHeight > window.innerHeight - 16) {
+            const topAbove = rect.top - popoverHeight - 6;
+            if (topAbove >= 16) {
+              top = topAbove;
+            } else {
+              top = Math.max(16, window.innerHeight - popoverHeight - 16);
+            }
+          }
+
+          tenantPopover.style.top = `${top}px`;
+          tenantPopover.style.left = `${left}px`;
+          tenantPopover.classList.remove('hidden');
+          tenantPopover.style.display = 'block';
+          activePopoverBtn = popoverTrigger;
+        } catch (err) {
+          console.error('Error opening popover:', err);
+        }
+        return;
+      }
+
+      if (tenantPopover && !tenantPopover.contains(e.target) && !tenantPopover.classList.contains('hidden')) {
+        closePopover();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePopover();
     });
 
     // 10b. Financial Summary 1-Button Expand/Collapse (Image 1 consolidation)
@@ -5073,34 +5918,62 @@
     const btnTools = document.getElementById('btnToggleToolsMenu');
     const menuTools = document.getElementById('toolsGroupMenu');
 
+    const updateDropdownActiveStates = () => {
+      const isExportOpen = menuExport && !menuExport.classList.contains('hidden');
+      const isToolsOpen = menuTools && !menuTools.classList.contains('hidden');
+
+      if (btnExport) btnExport.classList.toggle('active', !!isExportOpen);
+      if (btnTools) btnTools.classList.toggle('active', !!isToolsOpen);
+    };
+
+    const closeAllDropdowns = () => {
+      menuExport?.classList.add('hidden');
+      menuTools?.classList.add('hidden');
+      updateDropdownActiveStates();
+    };
+
     btnExport?.addEventListener('click', (e) => {
       e.stopPropagation();
       menuTools?.classList.add('hidden');
       menuExport?.classList.toggle('hidden');
+      updateDropdownActiveStates();
     });
 
     btnTools?.addEventListener('click', (e) => {
       e.stopPropagation();
       menuExport?.classList.add('hidden');
       menuTools?.classList.toggle('hidden');
+      updateDropdownActiveStates();
     });
 
     // Close dropdowns on item click
     menuExport?.querySelectorAll('button, a').forEach(item => {
-      item.addEventListener('click', () => menuExport.classList.add('hidden'));
+      item.addEventListener('click', closeAllDropdowns);
     });
     menuTools?.querySelectorAll('button, a').forEach(item => {
-      item.addEventListener('click', () => menuTools.classList.add('hidden'));
+      item.addEventListener('click', closeAllDropdowns);
     });
 
     // Close dropdowns on document click
     document.addEventListener('click', (e) => {
+      let changed = false;
       if (!e.target.closest('#exportGroupDropdownContainer')) {
-        menuExport?.classList.add('hidden');
+        if (menuExport && !menuExport.classList.contains('hidden')) {
+          menuExport.classList.add('hidden');
+          changed = true;
+        }
       }
       if (!e.target.closest('#toolsGroupDropdownContainer')) {
-        menuTools?.classList.add('hidden');
+        if (menuTools && !menuTools.classList.contains('hidden')) {
+          menuTools.classList.add('hidden');
+          changed = true;
+        }
       }
+      if (changed) updateDropdownActiveStates();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAllDropdowns();
     });
 
     // 15b. Database Access & Explorer Modal Handlers

@@ -5,12 +5,13 @@
  */
 
 window.DEFAULT_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAe0fW-mVEnLhJ2pS0ceqXKaZofel7RCSc",
-  authDomain: "analytics-f83f5.firebaseapp.com",
-  projectId: "analytics-f83f5",
-  storageBucket: "analytics-f83f5.firebasestorage.app",
-  messagingSenderId: "786023773051",
-  appId: "1:786023773051:web:1940ca2602aaf60b3443de"
+  apiKey: "AIzaSyD9C38cUSWaJcvYNu4a18begzwSlEJOiAg",
+  authDomain: "analytics-811fc.firebaseapp.com",
+  projectId: "analytics-811fc",
+  storageBucket: "analytics-811fc.firebasestorage.app",
+  messagingSenderId: "585171712098",
+  appId: "1:585171712098:web:88d0c24c059dd21f57b93b",
+  measurementId: "G-ZYYH3EBTHW"
 };
 
 (function () {
